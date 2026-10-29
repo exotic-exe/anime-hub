@@ -7,6 +7,8 @@ let heroAnimeId = null;
 let currentSection = 'trending';
 let searchTimeout = null;
 let currentMedia = null;
+let artInstance = null;
+const SAMPLE_HLS_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
 // ── GraphQL fragments ──────────────────────────────────────
 const MEDIA_FRAGMENT = `
@@ -268,25 +270,181 @@ async function performSearch(q) {
   }
 }
 
-// ── Video Player Helpers ────────────────────────────────────
+// ── Video Player Helpers (Artplayer + Stream Frame from oni-chan) ────
+function destroyArtplayer() {
+  if (artInstance && typeof artInstance.destroy === 'function') {
+    try { artInstance.destroy(false); } catch(e){}
+  }
+  artInstance = null;
+  const container = document.getElementById('artplayerContainer');
+  if (container) {
+    container.innerHTML = '';
+    container.classList.remove('active');
+  }
+}
+
+function initArtplayer(url, poster, animeName) {
+  destroyArtplayer();
+  const iframe = document.getElementById('videoIframe');
+  const empty = document.getElementById('playerEmpty');
+  const container = document.getElementById('artplayerContainer');
+  const badge = document.getElementById('playerBadgeText');
+  const title = document.getElementById('playerTitle');
+
+  if (iframe) { iframe.src = ''; iframe.classList.remove('active'); }
+  if (empty) { empty.style.display = 'none'; }
+  if (container) { container.classList.add('active'); }
+
+  badge.textContent = 'ARTPLAYER ENGINE';
+  title.textContent = `${animeName || 'Stream'} — Active Player`;
+
+  try {
+    const art = new Artplayer({
+      container: '#artplayerContainer',
+      url: url || SAMPLE_HLS_STREAM,
+      poster: poster || (currentMedia ? (currentMedia.bannerImage || currentMedia.coverImage.extraLarge) : ''),
+      volume: 0.6,
+      isLive: false,
+      muted: false,
+      autoplay: true,
+      pip: true,
+      autoSize: true,
+      autoMini: true,
+      screenshot: true,
+      setting: true,
+      loop: false,
+      flip: true,
+      playbackRate: true,
+      aspectRatio: true,
+      fullscreen: true,
+      fullscreenWeb: true,
+      subtitleOffset: true,
+      miniProgressBar: true,
+      mutex: true,
+      backdrop: true,
+      playsInline: true,
+      autoPlayback: true,
+      airplay: true,
+      theme: '#cae962', // Lemonish accent from oni-chan
+      moreVideoAttr: {
+        crossOrigin: 'anonymous',
+      },
+      customType: {
+        m3u8: function (video, m3u8Url) {
+          if (window.Hls && window.Hls.isSupported()) {
+            const hls = new window.Hls();
+            hls.loadSource(m3u8Url);
+            hls.attachMedia(video);
+          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = m3u8Url;
+          }
+        },
+      },
+      highlight: [
+        { time: 85, text: 'Intro Ends' },
+        { time: 1320, text: 'Outro Starts' },
+      ],
+    });
+
+    // Skip Intro layer from oni-chan
+    art.layers.add({
+      name: 'skip-intro',
+      html: '<button class="art-skip-btn">Skip Intro (85s)</button>',
+      style: { position: 'absolute', bottom: '80px', right: '20px' },
+      click: function () {
+        art.video.currentTime = 90;
+        this.style.display = 'none';
+        art.notice.show = 'Intro skipped';
+      },
+    });
+
+    // Skip Outro layer from oni-chan
+    art.layers.add({
+      name: 'skip-outro',
+      html: '<button class="art-skip-btn">Skip Outro</button>',
+      style: { position: 'absolute', bottom: '80px', right: '20px' },
+      click: function () {
+        art.notice.show = 'Outro skipped';
+      },
+    });
+
+    art.on('video:timeupdate', () => {
+      const current = art.video.currentTime;
+      const duration = art.video.duration;
+      const skipIntroBtn = art.layers['skip-intro'];
+      const skipOutroBtn = art.layers['skip-outro'];
+
+      if (current > 5 && current < 85) {
+        if (skipIntroBtn) skipIntroBtn.style.display = 'block';
+      } else {
+        if (skipIntroBtn) skipIntroBtn.style.display = 'none';
+      }
+
+      if (duration > 100 && current > duration - 90 && current < duration - 10) {
+        if (skipOutroBtn) skipOutroBtn.style.display = 'block';
+      } else {
+        if (skipOutroBtn) skipOutroBtn.style.display = 'none';
+      }
+    });
+
+    artInstance = art;
+  } catch (e) {
+    console.error('Failed to init Artplayer', e);
+  }
+}
+
+function switchPlayerMode(mode) {
+  document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
+  const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Anime';
+
+  if (mode === 'trailer') {
+    document.getElementById('tabTrailer')?.classList.add('active');
+    destroyArtplayer();
+    playCurrentTrailer(true);
+  } else if (mode === 'artplayer') {
+    document.getElementById('tabHls')?.classList.add('active');
+    const inputVal = document.getElementById('customStreamInput')?.value.trim();
+    initArtplayer(inputVal || SAMPLE_HLS_STREAM, currentMedia?.bannerImage, animeTitle);
+  } else if (mode === 'streams') {
+    document.getElementById('tabStream')?.classList.add('active');
+    document.getElementById('modalStreaming')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function playCustomStreamUrl() {
+  const url = document.getElementById('customStreamInput')?.value.trim();
+  if (!url) {
+    alert('Please enter a stream URL (.m3u8 or .mp4) to play.');
+    return;
+  }
+  document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tabHls')?.classList.add('active');
+  const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Custom Stream';
+  initArtplayer(url, currentMedia?.bannerImage, animeTitle);
+}
+
 function playCurrentTrailer(autoplay = true) {
   if (!currentMedia) return;
+  destroyArtplayer();
   const iframe = document.getElementById('videoIframe');
   const empty = document.getElementById('playerEmpty');
   const badge = document.getElementById('playerBadgeText');
   const title = document.getElementById('playerTitle');
   const animeTitle = currentMedia.title.english || currentMedia.title.romaji;
 
+  document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tabTrailer')?.classList.add('active');
+
   if (currentMedia.trailer && currentMedia.trailer.id && currentMedia.trailer.site === 'youtube') {
     const trailerId = currentMedia.trailer.id.trim();
-    badge.textContent = 'OFFICIAL TRAILER & PREVIEW';
-    title.textContent = `${animeTitle} — Official Trailer`;
+    badge.textContent = 'OFFICIAL PREVIEW';
+    title.textContent = `${animeTitle} — Official Video`;
     iframe.src = `https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=${autoplay ? 1 : 0}&rel=0`;
     iframe.classList.add('active');
     empty.style.display = 'none';
   } else {
     badge.textContent = 'VIDEO PREVIEW';
-    title.textContent = `${animeTitle} — Official Video Search`;
+    title.textContent = `${animeTitle} — Search Video Preview`;
     const searchQ = encodeURIComponent(`${animeTitle} anime trailer preview`);
     iframe.src = `https://www.youtube-nocookie.com/embed?listType=search&list=${searchQ}&autoplay=${autoplay ? 1 : 0}`;
     iframe.classList.add('active');
@@ -459,6 +617,7 @@ function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
   // Stop video playback completely
+  destroyArtplayer();
   const iframe = document.getElementById('videoIframe');
   if (iframe) {
     iframe.src = '';

@@ -76,6 +76,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <!-- ===== VIDEO PLAYER ENGINES (Artplayer + HLS.js from oni-chan) ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
 </head>
 <body>
 
@@ -144,20 +148,33 @@
           <div class="modal-tags" id="modalTags"></div>
           <div class="modal-stats" id="modalStats"></div>
 
-          <!-- ===== IN-APP THEATER PLAYER ===== -->
+          <!-- ===== IN-APP THEATER PLAYER (Artplayer + Stream Frame) ===== -->
           <div class="theater-player" id="theaterPlayer">
             <div class="player-bar">
               <span class="player-live-badge"><span class="dot"></span> <span id="playerBadgeText">VIDEO PLAYER</span></span>
               <span class="player-title" id="playerTitle">Select a video or episode to play</span>
             </div>
+            <div class="player-controls-tabs">
+              <button class="player-tab-btn active" id="tabTrailer" onclick="switchPlayerMode('trailer')">🎬 Official Video</button>
+              <button class="player-tab-btn" id="tabHls" onclick="switchPlayerMode('artplayer')">⚡ Artplayer (HLS Stream)</button>
+              <button class="player-tab-btn" id="tabStream" onclick="switchPlayerMode('streams')">📺 Stream Links</button>
+            </div>
             <div class="player-screen" id="playerScreen">
+              <!-- Artplayer (Exact frame from oni-chan with skip intro/outro) -->
+              <div id="artplayerContainer" class="artplayer-container"></div>
+              <!-- Official Video Iframe -->
+              <iframe id="videoIframe" class="video-iframe" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+              <!-- Empty state overlay with big play button -->
               <div class="player-empty" id="playerEmpty">
                 <button class="play-trigger-btn" id="playTriggerBtn" onclick="playCurrentTrailer()">
                   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                   <span>Play Trailer / Video</span>
                 </button>
               </div>
-              <iframe id="videoIframe" class="video-iframe" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+            </div>
+            <div class="player-custom-bar" id="playerCustomBar">
+              <input type="text" id="customStreamInput" placeholder="Paste .m3u8 stream or video URL to play in Artplayer..." autocomplete="off">
+              <button class="btn-play-custom" onclick="playCustomStreamUrl()">Play in Artplayer</button>
             </div>
           </div>
 
