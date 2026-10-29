@@ -6,25 +6,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Direct scraping - no external library dependencies that might break
 const BASE_URL = 'https://anitaku.in';
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Referer': 'https://anitaku.in/',
+  'Referer': BASE_URL + '/',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.5',
 };
 
-async function fetchWithCurl(url) {
-  const { spawn } = await import('child_process');
-  return new Promise((resolve, reject) => {
-    const child = spawn('curl.exe', ['-s', '-L', '-k', '--connect-timeout', '15', '--max-time', '30', '-H', 'User-Agent: ' + HEADERS['User-Agent'], '-H', 'Referer: ' + HEADERS['Referer'], url]);
-    let stdout = '', stderr = '';
-    child.stdout.on('data', d => stdout += d.toString());
-    child.stderr.on('data', d => stderr += d.toString());
-    child.on('close', code => code === 0 ? resolve(stdout) : reject(new Error(stderr || `curl code ${code}`)));
-    child.on('error', reject);
-  });
+async function fetchPage(url) {
+  const res = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+  return res.data;
 }
 
 // Search anime
@@ -34,17 +26,19 @@ app.get('/api/v1/search', async (req, res) => {
     if (!keyword) return res.json({ results: [], currentPage: 1, hasNextPage: false });
 
     const url = `${BASE_URL}/search.html?keyword=${encodeURIComponent(keyword)}&page=${page}`;
-    const html = await fetchWithCurl(url);
+    console.log('Search URL:', url);
+    const html = await fetchPage(url);
 
-    // Simple regex-based parsing (no cheerio dependency)
     const results = [];
-    const itemRegex = /<li>\s*<a href="\/category\/([^"]+)">\s*<img src="([^"]+)"[^>]*>\s*<div class="name">\s*([^<]+)/g;
+    // Try to find anime items in the HTML
+    const itemRegex = /<a href="\/category\/([^"]+)"[^>]*>\s*<img src="([^"]+)"[^>]*>[\s\S]*?<div class="name">\s*([^<]+)/g;
     let match;
     while ((match = itemRegex.exec(html)) !== null && results.length < 15) {
       results.push({ id: match[1], name: match[3].trim(), poster: match[2] });
     }
 
-    res.json({ results, currentPage: parseInt(page), hasNextPage: results.length > 0, totalPages: 1 });
+    console.log('Found:', results.length);
+    res.json({ results, currentPage: parseInt(page), hasNextPage: results.length >= 15, totalPages: 1 });
   } catch (err) {
     console.error('Search error:', err.message);
     res.json({ results: [], currentPage: 1, hasNextPage: false });
@@ -55,10 +49,10 @@ app.get('/api/v1/search', async (req, res) => {
 app.get('/api/v1/episodes/:id', async (req, res) => {
   try {
     const url = `${BASE_URL}/category/${req.params.id}`;
-    const html = await fetchWithCurl(url);
+    const html = await fetchPage(url);
 
     const episodes = [];
-    const epRegex = /<li>\s*<a href="(\/[^"]+-episode-\d+)"[^>]*>.*?<span class="name">([^<]+)/g;
+    const epRegex = /<li>\s*<a href="(\/[^"]+-episode-\d+)"[^>]*>[\s\S]*?<span class="name">([^<]+)/g;
     let match;
     while ((match = epRegex.exec(html)) !== null) {
       const epNum = match[2].replace(/[^\d]/g, '') || '1';
@@ -79,9 +73,8 @@ app.get('/api/v1/stream', async (req, res) => {
     if (!id) return res.json({ sources: [], iframe: null });
 
     const url = `${BASE_URL}/${id}`;
-    const html = await fetchWithCurl(url);
+    const html = await fetchPage(url);
 
-    // Extract video URL from data-video attribute
     const videoMatch = html.match(/data-video="([^"]+)"/);
     const videoUrl = videoMatch ? videoMatch[1].replace('//', 'https://') : null;
 
@@ -97,7 +90,6 @@ app.get('/api/v1/stream', async (req, res) => {
   }
 });
 
-// Health check
 app.get('/api/v1/home', (req, res) => res.json({ spotlightAnimes: [], trendingAnimes: [], latestEpisodeAnimes: [], topAiringAnimes: [], status: true }));
 
 const PORT = process.env.PORT || 3030;
