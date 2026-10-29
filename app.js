@@ -36,6 +36,19 @@ const DETAIL_QUERY = `
   query ($id: Int) {
     Media(id: $id, type: ANIME) {
       ...media
+      externalLinks {
+        url
+        site
+        icon
+        color
+        type
+      }
+      streamingEpisodes {
+        title
+        thumbnail
+        url
+        site
+      }
       characters(sort: FAVOURITES_DESC, perPage: 12) {
         edges {
           node { name { full } image { medium } }
@@ -265,6 +278,16 @@ async function openDetail(id) {
   try {
     const { Media: m } = await gql(DETAIL_QUERY, { id });
 
+    // Dynamic SEO — update title and meta for this anime
+    const animeTitle = m.title.english || m.title.romaji;
+    document.title = `${animeTitle} — AnimeHub | Watch, Discover & Track Anime`;
+    document.querySelector('meta[name="description"]')?.setAttribute('content',
+      `Watch ${animeTitle} on AnimeHub. ${stripHtml(m.description || '').slice(0, 150)}… Score: ${m.averageScore || 'N/A'}%. Genres: ${(m.genres || []).join(', ')}.`
+    );
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', `${animeTitle} — AnimeHub`);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', stripHtml(m.description || '').slice(0, 200));
+    document.querySelector('meta[property="og:image"]')?.setAttribute('content', m.bannerImage || m.coverImage.extraLarge);
+
     // banner
     const banner = m.bannerImage || m.coverImage.extraLarge;
     document.getElementById('modalBanner').style.backgroundImage = `url(${banner})`;
@@ -337,6 +360,11 @@ function closeModal() {
   document.body.style.overflow = '';
   // kill trailer playback
   document.getElementById('modalTrailer').innerHTML = '';
+  // Reset SEO to default
+  document.title = 'AnimeHub — Watch, Discover & Track Anime Online | Trending, Popular & Top Rated Anime';
+  document.querySelector('meta[name="description"]')?.setAttribute('content',
+    'AnimeHub by exotic-exe — Discover trending, popular, and top rated anime. Search thousands of anime, view details, characters, trailers, and find where to watch. Your ultimate free anime hub.'
+  );
 }
 
 document.addEventListener('keydown', e => {

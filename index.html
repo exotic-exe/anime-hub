@@ -3,8 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnimeHub — Discover Anime</title>
+
+  <!-- ===== PRIMARY SEO ===== -->
+  <title>AnimeHub — Watch, Discover & Track Anime Online | Trending, Popular & Top Rated Anime</title>
+  <meta name="description" content="AnimeHub by exotic-exe — Discover trending, popular, and top rated anime. Search thousands of anime, view details, characters, trailers, and find where to watch. Your ultimate free anime hub.">
+  <meta name="keywords" content="anime, watch anime, anime online, trending anime, popular anime, top rated anime, anime hub, anime list, anime tracker, anime search, anime 2026, anime streaming, exotic-exe">
+  <meta name="author" content="exotic-exe">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://exotic-exe.vercel.app/">
+  <meta name="theme-color" content="#6c5ce7">
+
+  <!-- ===== OPEN GRAPH (Facebook, Discord, etc.) ===== -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AnimeHub">
+  <meta property="og:title" content="AnimeHub — Watch, Discover & Track Anime Online">
+  <meta property="og:description" content="Discover trending, popular, and top rated anime. Search thousands of anime, view characters, trailers, and find where to watch. Your ultimate free anime hub by exotic-exe.">
+  <meta property="og:url" content="https://exotic-exe.vercel.app/">
+  <meta property="og:image" content="https://exotic-exe.vercel.app/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+
+  <!-- ===== TWITTER CARD ===== -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AnimeHub — Watch, Discover & Track Anime Online">
+  <meta name="twitter:description" content="Discover trending, popular & top rated anime. Search thousands of anime, view characters, trailers & find where to watch.">
+  <meta name="twitter:image" content="https://exotic-exe.vercel.app/og-image.png">
+  <meta name="twitter:creator" content="@exoticexe">
+
+  <!-- ===== STRUCTURED DATA (JSON-LD) ===== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "AnimeHub",
+    "alternateName": ["Anime Hub", "exotic-exe anime"],
+    "url": "https://exotic-exe.vercel.app/",
+    "description": "Discover trending, popular, and top rated anime. Search thousands of anime titles, view characters, trailers, and find where to watch.",
+    "publisher": {
+      "@type": "Person",
+      "name": "exotic-exe",
+      "url": "https://github.com/exotic-exe"
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://exotic-exe.vercel.app/?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "AnimeHub",
+    "url": "https://exotic-exe.vercel.app/",
+    "logo": "https://exotic-exe.vercel.app/og-image.png",
+    "sameAs": [
+      "https://github.com/exotic-exe"
+    ]
+  }
+  </script>
+
+  <!-- ===== FAVICON ===== -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛩️</text></svg>" type="image/svg+xml">
+
+  <!-- ===== FONTS & STYLES ===== -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -70,6 +139,12 @@
           <div class="modal-stats" id="modalStats"></div>
           <p class="modal-desc" id="modalDesc"></p>
 
+          <h3 class="modal-section-heading">📺 Where to Watch</h3>
+          <div class="streaming-links" id="modalStreaming"></div>
+
+          <h3 class="modal-section-heading">🎬 Episodes</h3>
+          <div class="episodes-row" id="modalEpisodes"></div>
+
           <h3 class="modal-section-heading">Characters</h3>
           <div class="characters-row" id="modalCharacters"></div>
 
@@ -84,7 +159,13 @@
 
   <!-- ===== FOOTER ===== -->
   <footer class="footer">
-    <p>Powered by <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a> API &bull; Built with ❤️</p>
+    <p>Powered by <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a> API &bull; Built with ❤️ by <a href="https://github.com/exotic-exe" target="_blank" rel="noopener">exotic-exe</a></p>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <a href="#" onclick="loadSection('trending')">Trending Anime</a>
+      <a href="#" onclick="loadSection('popular')">Popular Anime</a>
+      <a href="#" onclick="loadSection('top')">Top Rated Anime</a>
+      <a href="#" onclick="loadSection('upcoming')">Upcoming Anime</a>
+    </nav>
   </footer>
 
   <script src="app.js"></script>
