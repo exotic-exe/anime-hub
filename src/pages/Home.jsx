@@ -39,7 +39,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-[#e2e8f0]">
+    <div className="min-h-screen bg-black text-[#ededed]">
       <Navbar />
 
       {/* Hero with #1 Trending Anime */}
@@ -49,12 +49,12 @@ export default function Home() {
         {/* Trending Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Flame className="w-5 h-5 text-[#38bdf8]" />
+            <Flame className="w-5 h-5 text-zinc-300" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Trending Now</h2>
           </div>
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#0284c7] rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -68,7 +68,7 @@ export default function Home() {
         {/* Most Popular Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Star className="w-5 h-5 text-[#60a5fa]" />
+            <Star className="w-5 h-5 text-zinc-300" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Most Popular</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -81,7 +81,7 @@ export default function Home() {
         {/* Top Rated Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Trophy className="w-5 h-5 text-[#93c5fd]" />
+            <Trophy className="w-5 h-5 text-zinc-300" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Top Rated</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">

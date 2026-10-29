@@ -4,8 +4,8 @@
 
 @layer base {
   body {
-    background-color: #030712;
-    color: #e2e8f0;
+    background-color: #000000;
+    color: #ededed;
     font-family: 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
   }
@@ -19,9 +19,9 @@
   background: transparent;
 }
 .custom-scroll::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #27272a;
   border-radius: 9999px;
 }
 .custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
+  background: #52525b;
 }

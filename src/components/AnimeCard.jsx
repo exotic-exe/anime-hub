@@ -11,7 +11,7 @@ export default function AnimeCard({ anime }) {
   const genres = anime.genres?.slice(0, 2) || [];
 
   return (
-    <div className="group relative bg-[#0a101f] border border-[#1e293b]/70 rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 hover:border-[#0284c7]/50 hover:shadow-xl hover:shadow-[#0284c7]/10 transition-all duration-300">
+    <div className="group relative bg-[#0d0d0d] border border-zinc-800/80 rounded-xl overflow-hidden shadow-lg hover:-translate-y-1 hover:border-zinc-600 transition-all duration-300">
       <Link to={`/details/${anime.id}`} className="block relative aspect-[3/4.2] overflow-hidden">
         <img
           src={image}
@@ -22,25 +22,25 @@ export default function AnimeCard({ anime }) {
 
         {/* Score Badge */}
         {score && (
-          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md text-[11px] font-bold text-[#38bdf8] flex items-center gap-1 border border-white/5">
-            <Star className="w-3 h-3 fill-current text-[#38bdf8]" />
+          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-[11px] font-bold text-white flex items-center gap-1 border border-zinc-700">
+            <Star className="w-3 h-3 fill-current text-white" />
             {score}%
           </div>
         )}
 
         {/* Format / Episodes Badge */}
         {anime.episodes && (
-          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[#1d4ed8] text-[10px] font-extrabold text-white uppercase tracking-wider shadow">
+          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-zinc-800 text-[10px] font-extrabold text-zinc-200 uppercase tracking-wider border border-zinc-700 shadow">
             {anime.episodes} EP
           </div>
         )}
 
         {/* Overlay Play Button */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
           <Link
             to={`/watch/${anime.id}`}
             onClick={(e) => e.stopPropagation()}
-            className="w-12 h-12 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-lg shadow-[#0284c7]/50 transform scale-90 group-hover:scale-100 transition duration-300 hover:bg-[#0369a1]"
+            className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl shadow-black transform scale-90 group-hover:scale-100 transition duration-300 hover:bg-zinc-200"
             title="Watch Now"
           >
             <Play className="w-5 h-5 fill-current ml-0.5" />
@@ -52,7 +52,7 @@ export default function AnimeCard({ anime }) {
       <div className="p-3">
         <Link
           to={`/details/${anime.id}`}
-          className="text-xs sm:text-sm font-bold text-gray-200 hover:text-[#38bdf8] line-clamp-2 transition"
+          className="text-xs sm:text-sm font-bold text-zinc-200 hover:text-white line-clamp-2 transition"
           title={title}
         >
           {title}
@@ -61,7 +61,7 @@ export default function AnimeCard({ anime }) {
           {genres.map((g) => (
             <span
               key={g}
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.04] text-[#93c5fd]"
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400"
             >
               {g}
             </span>
