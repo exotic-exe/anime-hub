@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
+import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
 import { Play, Star, Calendar, Clock, Film } from 'lucide-react';
 
@@ -176,6 +177,8 @@ export default function Details() {
           </section>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
+import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
 import { Star, Play, Layers } from 'lucide-react';
 
@@ -154,6 +155,8 @@ export default function Watch() {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

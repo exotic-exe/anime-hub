@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import AnimeCard from '../components/AnimeCard';
+import Footer from '../components/Footer';
 import { fetchTrending, fetchPopular, fetchTopRated } from '../api';
 import { Flame, Star, Trophy } from 'lucide-react';
 
@@ -91,10 +92,8 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Footer without powered-by text */}
-      <footer className="border-t border-[#1e293b] py-8 text-center text-xs text-gray-500 mt-16">
-        <p>© 2026 ExoticHub. All rights reserved.</p>
-      </footer>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

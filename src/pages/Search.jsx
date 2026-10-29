@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
+import Footer from '../components/Footer';
 import { searchAnime } from '../api';
 import { Search as SearchIcon } from 'lucide-react';
 
@@ -93,6 +94,8 @@ export default function Search() {
           </div>
         ) : null}
       </main>
+
+      <Footer />
     </div>
   );
 }
