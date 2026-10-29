@@ -264,8 +264,8 @@ export default function VideoPlayer({
       {/* Player Header Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#0e0e0e] border-b border-zinc-800 text-xs">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-200 font-bold tracking-wider border border-zinc-700">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+          <span className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-200 font-bold tracking-wider border border-zinc-700">
+            <img src="/logo.jpg" alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
             EXOTICHUB
           </span>
           <span className="text-zinc-300 font-semibold truncate max-w-[280px] sm:max-w-[500px]">

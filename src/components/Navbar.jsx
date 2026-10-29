@@ -18,9 +18,14 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
-        {/* Brand without the 'E' */}
-        <Link to="/" className="text-xl font-black text-white hover:opacity-85 transition tracking-tight">
-          Exotic<span className="text-zinc-400">Hub</span>
+        {/* Brand with Logo */}
+        <Link to="/" className="flex items-center gap-2.5 text-xl font-black text-white hover:opacity-85 transition tracking-tight">
+          <img
+            src="/logo.jpg"
+            alt="ExoticHub Logo"
+            className="w-9 h-9 rounded-full object-cover border border-zinc-700 shadow-md ring-1 ring-white/10"
+          />
+          <span>Exotic<span className="text-zinc-400">Hub</span></span>
         </Link>
 
         {/* Search Bar */}
