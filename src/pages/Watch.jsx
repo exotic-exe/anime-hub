@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
 import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
+import { searchStreamAnime, fetchStreamEpisodes, fetchEpisodeStream, getBestStreamUrl } from '../api/streaming';
 import { Star, Play, Layers } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
@@ -12,11 +13,18 @@ export default function Watch() {
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedEp, setSelectedEp] = useState(1);
+  const [streamUrl, setStreamUrl] = useState(null);
+  const [streamLoading, setStreamLoading] = useState(false);
+  const [streamError, setStreamError] = useState(null);
+  const [streamEpisodes, setStreamEpisodes] = useState([]);
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
+        setStreamUrl(null);
+        setStreamError(null);
+        setStreamEpisodes([]);
         const data = await fetchAnimeDetails(id);
         setAnime(data);
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
@@ -25,6 +33,21 @@ export default function Watch() {
           'content',
           `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
+
+        // Streaming provider: find anime, then real episode list
+        try {
+          const search = await searchStreamAnime(animeTitle);
+          const match = search?.results?.[0];
+          if (match?.id) {
+            const epData = await fetchStreamEpisodes(match.id);
+            setStreamEpisodes(epData?.episodes || []);
+          } else {
+            setStreamError('Anime not found on streaming provider.');
+          }
+        } catch (streamErr) {
+          console.error('Streaming setup failed', streamErr);
+          setStreamError('Failed to load streaming episodes.');
+        }
       } catch (err) {
         console.error('Failed to load anime for watch', err);
       } finally {
@@ -60,12 +83,46 @@ export default function Watch() {
   }
 
   const title = anime.title?.english || anime.title?.romaji;
-  const episodesCount = anime.episodes || anime.streamingEpisodes?.length || 12;
-  const episodesList = Array.from({ length: episodesCount }, (_, i) => ({
-    number: i + 1,
-    title: anime.streamingEpisodes?.[i]?.title || `Episode ${i + 1}`,
-    thumbnail: anime.streamingEpisodes?.[i]?.thumbnail || anime.coverImage?.large,
-  }));
+  const episodesList = streamEpisodes.length
+    ? streamEpisodes.map((ep, i) => ({
+        number: ep.number || i + 1,
+        title: ep.title || `Episode ${ep.number || i + 1}`,
+        thumbnail: ep.thumbnail || ep.image || anime.coverImage?.large,
+        id: ep.id,
+      }))
+    : Array.from(
+        { length: anime.episodes || anime.streamingEpisodes?.length || 12 },
+        (_, i) => ({
+          number: i + 1,
+          title: anime.streamingEpisodes?.[i]?.title || `Episode ${i + 1}`,
+          thumbnail: anime.streamingEpisodes?.[i]?.thumbnail || anime.coverImage?.large,
+        })
+      );
+  const episodesCount = episodesList.length;
+
+  async function handleEpClick(ep) {
+    setSelectedEp(ep.number);
+    if (!ep.id) {
+      setStreamError('Stream unavailable for this episode.');
+      return;
+    }
+    setStreamLoading(true);
+    setStreamError(null);
+    try {
+      const stream = await fetchEpisodeStream(ep.id);
+      const url = getBestStreamUrl(stream?.sources) || stream?.iframe;
+      if (url) {
+        setStreamUrl(url);
+      } else {
+        setStreamError('No stream source found for this episode.');
+      }
+    } catch (err) {
+      console.error('Episode stream failed', err);
+      setStreamError('Failed to load stream for this episode.');
+    } finally {
+      setStreamLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
@@ -76,16 +133,29 @@ export default function Watch() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Player Container */}
           <div className="lg:col-span-2 space-y-4">
-            <VideoPlayer
-              poster={anime.bannerImage || anime.coverImage?.extraLarge}
-              animeName={title}
-              episodeTitle={`Episode ${selectedEp}`}
-              onEnded={() => {
-                if (selectedEp < episodesCount) {
-                  setSelectedEp(selectedEp + 1);
-                }
-              }}
-            />
+            <div className="relative">
+              <VideoPlayer
+                url={streamUrl}
+                poster={anime.bannerImage || anime.coverImage?.extraLarge}
+                animeName={title}
+                episodeTitle={`Episode ${selectedEp}`}
+                onEnded={() => {
+                  if (selectedEp < episodesCount) {
+                    setSelectedEp(selectedEp + 1);
+                  }
+                }}
+              />
+              {streamLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-2xl z-10">
+                  <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            {streamError && (
+              <p className="text-sm font-bold text-red-400 bg-red-950/40 border border-red-900 rounded-xl px-4 py-3">
+                {streamError}
+              </p>
+            )}
 
             {/* Anime Title & Meta */}
             <div className="space-y-3 pt-2">
@@ -125,7 +195,7 @@ export default function Watch() {
               {episodesList.map((ep) => (
                 <button
                   key={ep.number}
-                  onClick={() => setSelectedEp(ep.number)}
+                  onClick={() => handleEpClick(ep)}
                   className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition duration-200 ${
                     selectedEp === ep.number
                       ? 'bg-white text-black font-extrabold border border-white'

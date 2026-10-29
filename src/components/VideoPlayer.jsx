@@ -7,7 +7,9 @@ const DEFAULT_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 const DEFAULT_SUBTITLE = '/subtitles/demo.vtt';
 
 export default function VideoPlayer({
-  url = DEFAULT_STREAM,
+  url = '',
+  iframe = '',
+  streamHeaders = null,
   poster = '',
   subtitleUrl = DEFAULT_SUBTITLE,
   autoplay = true,
@@ -16,6 +18,8 @@ export default function VideoPlayer({
   episodeTitle = 'Episode 1',
   onEnded = () => {},
 }) {
+  // Iframe fallback only when caller gave an embed and no direct stream url
+  const useIframe = Boolean(iframe) && !url && isSafeUrl(iframe);
   const artRef = useRef(null);
   const instanceRef = useRef(null);
   const hlsRef = useRef(null);
@@ -59,6 +63,9 @@ export default function VideoPlayer({
     if (artRef.current) {
       artRef.current.innerHTML = '';
     }
+
+    // oni-chan embed: no direct stream, render provider iframe instead of Artplayer
+    if (useIframe) return;
 
     const art = new Artplayer({
       container: artRef.current,
@@ -128,6 +135,12 @@ export default function VideoPlayer({
             const hls = new Hls({
               enableWorker: true,
               lowLatencyMode: true,
+              // forward provider stream headers (e.g. Referer) on segment requests
+              xhrSetup: streamHeaders
+                ? (xhr) => {
+                    Object.entries(streamHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+                  }
+                : undefined,
             });
             hls.loadSource(m3u8Url);
             hls.attachMedia(video);
@@ -248,7 +261,7 @@ export default function VideoPlayer({
         artRef.current.innerHTML = '';
       }
     };
-  }, [activeUrl, activeSub, poster]);
+  }, [activeUrl, activeSub, poster, useIframe]);
 
   const handleCustomLoad = (e) => {
     e.preventDefault();
@@ -292,7 +305,18 @@ export default function VideoPlayer({
 
       {/* Screen Container */}
       <div className="relative w-full aspect-video bg-black">
-        <div ref={artRef} className="w-full h-full" />
+        {useIframe ? (
+          <iframe
+            src={iframe}
+            title={`${animeName} — ${episodeTitle}`}
+            className="absolute inset-0 w-full h-full border-0"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="origin"
+          />
+        ) : (
+          <div ref={artRef} className="w-full h-full" />
+        )}
       </div>
 
       {/* Stream & Caption Input Bar */}
