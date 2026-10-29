@@ -358,6 +358,11 @@ img { display: block; max-width: 100%; }
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent2); box-shadow: 0 0 8px var(--accent2);
 }
+.caption-badge {
+  margin-left: auto; font-size: .72rem; font-weight: 600;
+  color: var(--accent2); background: rgba(0, 206, 201, 0.1);
+  padding: 3px 8px; border-radius: 100px; white-space: nowrap;
+}
 .player-title {
   color: var(--text-secondary); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; font-weight: 500;
@@ -421,9 +426,10 @@ img { display: block; max-width: 100%; }
   display: flex; gap: 8px; padding: 10px 14px;
   background: rgba(255, 255, 255, 0.02);
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 .player-custom-bar input {
-  flex: 1; background: var(--bg-card);
+  flex: 1; min-width: 170px; background: var(--bg-card);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 8px 14px; font-size: 0.8rem;
   color: var(--text-primary); outline: none;

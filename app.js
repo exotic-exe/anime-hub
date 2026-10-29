@@ -9,6 +9,7 @@ let searchTimeout = null;
 let currentMedia = null;
 let artInstance = null;
 const SAMPLE_HLS_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const DEFAULT_SUBTITLE = '/subtitles/demo.vtt';
 
 // ── GraphQL fragments ──────────────────────────────────────
 const MEDIA_FRAGMENT = `
@@ -270,7 +271,7 @@ async function performSearch(q) {
   }
 }
 
-// ── Video Player Helpers (Artplayer + Stream Frame from oni-chan) ────
+// ── Video Player Helpers (Artplayer + Captions Engine) ────
 function destroyArtplayer() {
   if (artInstance && typeof artInstance.destroy === 'function') {
     try { artInstance.destroy(false); } catch(e){}
@@ -283,20 +284,24 @@ function destroyArtplayer() {
   }
 }
 
-function initArtplayer(url, poster, animeName) {
+function initArtplayer(url, poster, animeName, subtitleUrl) {
   destroyArtplayer();
-  const iframe = document.getElementById('videoIframe');
   const empty = document.getElementById('playerEmpty');
   const container = document.getElementById('artplayerContainer');
   const badge = document.getElementById('playerBadgeText');
   const title = document.getElementById('playerTitle');
+  const captionBadge = document.getElementById('captionBadge');
 
-  if (iframe) { iframe.src = ''; iframe.classList.remove('active'); }
   if (empty) { empty.style.display = 'none'; }
   if (container) { container.classList.add('active'); }
 
   badge.textContent = 'ARTPLAYER ENGINE';
-  title.textContent = `${animeName || 'Stream'} — Active Player`;
+  title.textContent = `${animeName || 'Stream'} — Active Stream`;
+
+  const subUrl = subtitleUrl || DEFAULT_SUBTITLE;
+  if (captionBadge) {
+    captionBadge.textContent = '💬 CC: English (Active)';
+  }
 
   try {
     const art = new Artplayer({
@@ -329,6 +334,32 @@ function initArtplayer(url, poster, animeName) {
       moreVideoAttr: {
         crossOrigin: 'anonymous',
       },
+      subtitle: {
+        url: subUrl,
+        type: 'vtt',
+        style: {
+          color: '#ffffff',
+          fontSize: '22px',
+          textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 2px #000',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          fontWeight: '600',
+        },
+        encoding: 'utf-8',
+      },
+      controls: [
+        {
+          position: 'right',
+          html: '💬 CC',
+          tooltip: 'Toggle Captions',
+          click: function () {
+            art.subtitle.show = !art.subtitle.show;
+            art.notice.show = art.subtitle.show ? 'Captions: ON' : 'Captions: OFF';
+            if (captionBadge) {
+              captionBadge.textContent = art.subtitle.show ? '💬 CC: ON' : '💬 CC: OFF';
+            }
+          },
+        },
+      ],
       customType: {
         m3u8: function (video, m3u8Url) {
           if (window.Hls && window.Hls.isSupported()) {
@@ -393,61 +424,45 @@ function initArtplayer(url, poster, animeName) {
   }
 }
 
-function switchPlayerMode(mode) {
-  document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
-  const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Anime';
-
-  if (mode === 'trailer') {
-    document.getElementById('tabTrailer')?.classList.add('active');
-    destroyArtplayer();
-    playCurrentTrailer(true);
-  } else if (mode === 'artplayer') {
-    document.getElementById('tabHls')?.classList.add('active');
-    const inputVal = document.getElementById('customStreamInput')?.value.trim();
-    initArtplayer(inputVal || SAMPLE_HLS_STREAM, currentMedia?.bannerImage, animeTitle);
-  } else if (mode === 'streams') {
-    document.getElementById('tabStream')?.classList.add('active');
-    document.getElementById('modalStreaming')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+function toggleCaptions() {
+  if (artInstance && artInstance.subtitle) {
+    artInstance.subtitle.show = !artInstance.subtitle.show;
+    artInstance.notice.show = artInstance.subtitle.show ? 'Captions: ON' : 'Captions: OFF';
+    const captionBadge = document.getElementById('captionBadge');
+    if (captionBadge) {
+      captionBadge.textContent = artInstance.subtitle.show ? '💬 CC: ON' : '💬 CC: OFF';
+    }
+  } else {
+    startArtplayerStream();
   }
+}
+
+function startArtplayerStream() {
+  const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Anime';
+  const streamUrl = document.getElementById('customStreamInput')?.value.trim();
+  const captionUrl = document.getElementById('customCaptionInput')?.value.trim();
+  initArtplayer(streamUrl || SAMPLE_HLS_STREAM, currentMedia?.bannerImage, animeTitle, captionUrl || DEFAULT_SUBTITLE);
 }
 
 function playCustomStreamUrl() {
-  const url = document.getElementById('customStreamInput')?.value.trim();
-  if (!url) {
+  const streamUrl = document.getElementById('customStreamInput')?.value.trim();
+  const captionUrl = document.getElementById('customCaptionInput')?.value.trim();
+  if (!streamUrl) {
     alert('Please enter a stream URL (.m3u8 or .mp4) to play.');
     return;
   }
-  document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tabHls')?.classList.add('active');
   const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Custom Stream';
-  initArtplayer(url, currentMedia?.bannerImage, animeTitle);
+  initArtplayer(streamUrl, currentMedia?.bannerImage, animeTitle, captionUrl || DEFAULT_SUBTITLE);
 }
 
-function playCurrentTrailer(autoplay = true) {
-  if (!currentMedia) return;
-  destroyArtplayer();
-  const iframe = document.getElementById('videoIframe');
-  const empty = document.getElementById('playerEmpty');
-  const badge = document.getElementById('playerBadgeText');
-  const title = document.getElementById('playerTitle');
-  const animeTitle = currentMedia.title.english || currentMedia.title.romaji;
-
+function switchPlayerMode(mode) {
   document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tabTrailer')?.classList.add('active');
-
-  if (currentMedia.trailer && currentMedia.trailer.id && currentMedia.trailer.site === 'youtube') {
-    const trailerId = currentMedia.trailer.id.trim();
-    badge.textContent = 'OFFICIAL PREVIEW';
-    title.textContent = `${animeTitle} — Official Video`;
-    iframe.src = `https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=${autoplay ? 1 : 0}&rel=0`;
-    iframe.classList.add('active');
-    empty.style.display = 'none';
-  } else {
-    badge.textContent = 'STREAM PLAYER';
-    title.textContent = `${animeTitle} — Artplayer Stream`;
-    initArtplayer(SAMPLE_HLS_STREAM, currentMedia?.bannerImage, animeTitle);
-    document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
+  if (mode === 'artplayer') {
     document.getElementById('tabHls')?.classList.add('active');
+    startArtplayerStream();
+  } else if (mode === 'streams') {
+    document.getElementById('tabStream')?.classList.add('active');
+    document.getElementById('modalStreaming')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
@@ -470,12 +485,13 @@ async function openDetail(id, autoPlay = false) {
   ['modalBanner','modalPoster','modalTitle','modalTags','modalStats','modalDesc','modalCharacters','modalRecs','modalStreaming','modalEpisodes']
     .forEach(el => { const d = document.getElementById(el); if (d) d.innerHTML = ''; });
   
-  const iframe = document.getElementById('videoIframe');
+  destroyArtplayer();
   const empty = document.getElementById('playerEmpty');
-  if (iframe) { iframe.src = ''; iframe.classList.remove('active'); }
   if (empty) { empty.style.display = 'flex'; }
-  document.getElementById('playerBadgeText').textContent = 'VIDEO PLAYER';
-  document.getElementById('playerTitle').textContent = 'Loading video…';
+  document.getElementById('playerBadgeText').textContent = 'ARTPLAYER';
+  document.getElementById('playerTitle').textContent = 'Ready to play';
+  const captionBadge = document.getElementById('captionBadge');
+  if (captionBadge) captionBadge.textContent = '💬 CC: Ready';
   document.getElementById('modalTitle').textContent = 'Loading…';
 
   try {
@@ -519,16 +535,11 @@ async function openDetail(id, autoPlay = false) {
 
     // theater player setup
     empty.style.backgroundImage = `url(${m.bannerImage || m.coverImage.extraLarge})`;
-    if (m.trailer && m.trailer.id) {
-      document.getElementById('playerTitle').textContent = `${animeTitle} — Official Trailer & Preview`;
-      document.getElementById('playerBadgeText').textContent = 'OFFICIAL PREVIEW';
-    } else {
-      document.getElementById('playerTitle').textContent = `${animeTitle} — Streams & Previews`;
-      document.getElementById('playerBadgeText').textContent = 'AVAILABLE STREAMS';
-    }
+    document.getElementById('playerTitle').textContent = `${animeTitle} — Artplayer Stream`;
+    document.getElementById('playerBadgeText').textContent = 'READY TO STREAM';
 
     if (autoPlay) {
-      playCurrentTrailer(true);
+      startArtplayerStream();
       document.getElementById('theaterPlayer')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
