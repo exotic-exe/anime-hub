@@ -5,6 +5,7 @@ import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
 import { Play, Star, Calendar, Clock, Film } from 'lucide-react';
+import { stripHtml } from '../utils/sanitize';
 
 export default function Details() {
   const { id } = useParams();
@@ -136,25 +137,25 @@ export default function Details() {
             </div>
 
             <div className="pt-2">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Synopsis</h3>
-              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">
-                {anime.description?.replace(/<[^>]*>/g, '')}
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">Synopsis</h3>
+              <p className="text-sm sm:text-base text-zinc-300 leading-relaxed">
+                {stripHtml(anime.description)}
               </p>
             </div>
 
             {/* Characters */}
             {anime.characters?.edges?.length > 0 && (
               <div className="pt-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Characters</h3>
+                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-3">Characters</h3>
                 <div className="flex gap-4 overflow-x-auto pb-2 custom-scroll">
                   {anime.characters.edges.map((c) => (
                     <div key={c.node.id} className="w-16 flex-shrink-0 text-center space-y-1">
                       <img
                         src={c.node.image?.medium}
                         alt={c.node.name?.full}
-                        className="w-14 h-14 rounded-full mx-auto object-cover border border-[#1e293b]"
+                        className="w-14 h-14 rounded-full mx-auto object-cover border border-zinc-800"
                       />
-                      <div className="text-[10px] text-gray-300 font-semibold truncate">
+                      <div className="text-[10px] text-zinc-300 font-semibold truncate">
                         {c.node.name?.full}
                       </div>
                     </div>

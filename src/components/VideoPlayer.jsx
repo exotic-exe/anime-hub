@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
+import { isSafeUrl } from '../utils/sanitize';
 
 const DEFAULT_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 const DEFAULT_SUBTITLE = '/subtitles/demo.vtt';
@@ -252,10 +253,20 @@ export default function VideoPlayer({
   const handleCustomLoad = (e) => {
     e.preventDefault();
     if (streamInput.trim()) {
-      setActiveUrl(streamInput.trim());
+      if (isSafeUrl(streamInput.trim())) {
+        setActiveUrl(streamInput.trim());
+      } else {
+        alert('Invalid stream URL. Only secure HTTP/HTTPS streams are permitted.');
+        return;
+      }
     }
     if (captionInput.trim()) {
-      setActiveSub(captionInput.trim());
+      if (isSafeUrl(captionInput.trim())) {
+        setActiveSub(captionInput.trim());
+      } else {
+        alert('Invalid subtitle URL. Only secure HTTP/HTTPS subtitles are permitted.');
+        return;
+      }
     }
   };
 

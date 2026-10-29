@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Info, Star } from 'lucide-react';
+import { stripHtml } from '../utils/sanitize';
 
 export default function Hero({ anime }) {
   if (!anime) return null;
 
   const title = anime.title?.english || anime.title?.romaji;
   const banner = anime.bannerImage || anime.coverImage?.extraLarge;
-  const description = anime.description?.replace(/<[^>]*>/g, '') || '';
+  const description = stripHtml(anime.description);
 
   return (
     <div className="relative w-full min-h-[440px] flex items-end overflow-hidden mb-8 border-b border-zinc-800">

@@ -5,6 +5,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
 import { Star, Play, Layers } from 'lucide-react';
+import { stripHtml } from '../utils/sanitize';
 
 export default function Watch() {
   const { id } = useParams();
@@ -103,7 +104,7 @@ export default function Watch() {
                 <span>• {episodesCount} Episodes</span>
               </div>
               <p className="text-sm text-zinc-300 leading-relaxed pt-2">
-                {anime.description?.replace(/<[^>]*>/g, '')}
+                {stripHtml(anime.description)}
               </p>
             </div>
           </div>
