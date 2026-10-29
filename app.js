@@ -443,12 +443,11 @@ function playCurrentTrailer(autoplay = true) {
     iframe.classList.add('active');
     empty.style.display = 'none';
   } else {
-    badge.textContent = 'VIDEO PREVIEW';
-    title.textContent = `${animeTitle} — Search Video Preview`;
-    const searchQ = encodeURIComponent(`${animeTitle} anime trailer preview`);
-    iframe.src = `https://www.youtube-nocookie.com/embed?listType=search&list=${searchQ}&autoplay=${autoplay ? 1 : 0}`;
-    iframe.classList.add('active');
-    empty.style.display = 'none';
+    badge.textContent = 'STREAM PLAYER';
+    title.textContent = `${animeTitle} — Artplayer Stream`;
+    initArtplayer(SAMPLE_HLS_STREAM, currentMedia?.bannerImage, animeTitle);
+    document.querySelectorAll('.player-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tabHls')?.classList.add('active');
   }
 }
 
