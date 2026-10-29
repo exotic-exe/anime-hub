@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnimeHub — Discover Anime</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== HEADER / NAV ===== -->
+  <header class="header">
+    <a href="#" class="logo" onclick="goHome()">
+      <span class="logo-icon">⛩️</span> AnimeHub
+    </a>
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      <input type="text" id="searchInput" placeholder="Search anime..." autocomplete="off">
+    </div>
+    <nav class="nav-links">
+      <a href="#" class="nav-link active" data-section="trending" onclick="loadSection('trending')">Trending</a>
+      <a href="#" class="nav-link" data-section="popular" onclick="loadSection('popular')">Popular</a>
+      <a href="#" class="nav-link" data-section="top" onclick="loadSection('top')">Top Rated</a>
+      <a href="#" class="nav-link" data-section="upcoming" onclick="loadSection('upcoming')">Upcoming</a>
+    </nav>
+  </header>
+
+  <!-- ===== HERO (Home only) ===== -->
+  <section id="hero" class="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="hero-content">
+      <span class="hero-badge" id="heroBadge"></span>
+      <h1 class="hero-title" id="heroTitle"></h1>
+      <p class="hero-desc" id="heroDesc"></p>
+      <div class="hero-meta" id="heroMeta"></div>
+      <button class="btn-primary" id="heroBtn" onclick="openDetail(heroAnimeId)">View Details</button>
+    </div>
+  </section>
+
+  <!-- ===== SECTION TITLE ===== -->
+  <div class="container">
+    <h2 class="section-title" id="sectionTitle">🔥 Trending Now</h2>
+  </div>
+
+  <!-- ===== ANIME GRID ===== -->
+  <main class="container">
+    <div class="anime-grid" id="animeGrid"></div>
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+    </div>
+    <div class="no-results" id="noResults" style="display:none;">
+      <p>😿 No anime found. Try a different search!</p>
+    </div>
+  </main>
+
+  <!-- ===== DETAIL MODAL ===== -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeDetail(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-banner" id="modalBanner"></div>
+      <div class="modal-body">
+        <div class="modal-poster-wrap">
+          <img id="modalPoster" class="modal-poster" alt="">
+        </div>
+        <div class="modal-info">
+          <h2 id="modalTitle" class="modal-title"></h2>
+          <div class="modal-tags" id="modalTags"></div>
+          <div class="modal-stats" id="modalStats"></div>
+          <p class="modal-desc" id="modalDesc"></p>
+
+          <h3 class="modal-section-heading">Characters</h3>
+          <div class="characters-row" id="modalCharacters"></div>
+
+          <h3 class="modal-section-heading">Recommendations</h3>
+          <div class="recommendations-row" id="modalRecs"></div>
+
+          <div class="modal-trailer" id="modalTrailer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <p>Powered by <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a> API &bull; Built with ❤️</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
