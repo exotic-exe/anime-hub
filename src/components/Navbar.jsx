@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Flame, Star, Trophy, Menu, X } from 'lucide-react';
+import { sanitizeInput } from '../api';
 
 export default function Navbar() {
   const [query, setQuery] = useState('');
@@ -9,8 +10,9 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (query.trim()) {
-      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    const clean = sanitizeInput(query);
+    if (clean) {
+      navigate(`/search?q=${encodeURIComponent(clean)}`);
       setMobileMenuOpen(false);
     }
   };

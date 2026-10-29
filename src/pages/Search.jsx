@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
-import { searchAnime } from '../api';
+import { searchAnime, sanitizeInput } from '../api';
 import { Search as SearchIcon } from 'lucide-react';
 
 export default function Search() {
@@ -36,8 +36,9 @@ export default function Search() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputVal.trim()) {
-      setSearchParams({ q: inputVal.trim() });
+    const clean = sanitizeInput(inputVal);
+    if (clean) {
+      setSearchParams({ q: clean });
     }
   };
 
