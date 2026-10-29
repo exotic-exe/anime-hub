@@ -6,6 +6,7 @@ const API = 'https://graphql.anilist.co';
 let heroAnimeId = null;
 let currentSection = 'trending';
 let searchTimeout = null;
+let currentMedia = null;
 
 // ── GraphQL fragments ──────────────────────────────────────
 const MEDIA_FRAGMENT = `
@@ -166,12 +167,15 @@ function createCard(m) {
 
   const card = document.createElement('div');
   card.className = 'anime-card';
-  card.onclick = () => openDetail(m.id);
+  card.onclick = () => openDetail(m.id, false);
 
   card.innerHTML = `
     <img class="card-img" src="${img}" alt="${title}" loading="lazy">
     ${score ? `<span class="card-score ${scoreClass(score)}">★ ${score}%</span>` : ''}
     ${epBadge ? `<span class="card-ep">${epBadge}</span>` : ''}
+    <div class="card-play-btn" title="Watch Now" onclick="event.stopPropagation(); openDetail(${m.id}, true)">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </div>
     <div class="card-body">
       <div class="card-title">${title}</div>
       <div class="card-genres">
@@ -264,19 +268,62 @@ async function performSearch(q) {
   }
 }
 
+// ── Video Player Helpers ────────────────────────────────────
+function playCurrentTrailer(autoplay = true) {
+  if (!currentMedia) return;
+  const iframe = document.getElementById('videoIframe');
+  const empty = document.getElementById('playerEmpty');
+  const badge = document.getElementById('playerBadgeText');
+  const title = document.getElementById('playerTitle');
+  const animeTitle = currentMedia.title.english || currentMedia.title.romaji;
+
+  if (currentMedia.trailer && currentMedia.trailer.id && currentMedia.trailer.site === 'youtube') {
+    const trailerId = currentMedia.trailer.id.trim();
+    badge.textContent = 'OFFICIAL TRAILER & PREVIEW';
+    title.textContent = `${animeTitle} — Official Trailer`;
+    iframe.src = `https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=${autoplay ? 1 : 0}&rel=0`;
+    iframe.classList.add('active');
+    empty.style.display = 'none';
+  } else {
+    badge.textContent = 'VIDEO PREVIEW';
+    title.textContent = `${animeTitle} — Official Video Search`;
+    const searchQ = encodeURIComponent(`${animeTitle} anime trailer preview`);
+    iframe.src = `https://www.youtube-nocookie.com/embed?listType=search&list=${searchQ}&autoplay=${autoplay ? 1 : 0}`;
+    iframe.classList.add('active');
+    empty.style.display = 'none';
+  }
+}
+
+function playEpisode(url, epTitle) {
+  if (!url) return;
+  const badge = document.getElementById('playerBadgeText');
+  const title = document.getElementById('playerTitle');
+  badge.textContent = 'STREAMING EPISODE';
+  title.textContent = epTitle;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 // ── Detail modal ───────────────────────────────────────────
-async function openDetail(id) {
+async function openDetail(id, autoPlay = false) {
   const overlay = document.getElementById('modalOverlay');
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
 
   // reset
-  ['modalBanner','modalPoster','modalTitle','modalTags','modalStats','modalDesc','modalCharacters','modalRecs','modalTrailer']
-    .forEach(el => { const d = document.getElementById(el); d.innerHTML = ''; });
+  ['modalBanner','modalPoster','modalTitle','modalTags','modalStats','modalDesc','modalCharacters','modalRecs','modalStreaming','modalEpisodes']
+    .forEach(el => { const d = document.getElementById(el); if (d) d.innerHTML = ''; });
+  
+  const iframe = document.getElementById('videoIframe');
+  const empty = document.getElementById('playerEmpty');
+  if (iframe) { iframe.src = ''; iframe.classList.remove('active'); }
+  if (empty) { empty.style.display = 'flex'; }
+  document.getElementById('playerBadgeText').textContent = 'VIDEO PLAYER';
+  document.getElementById('playerTitle').textContent = 'Loading video…';
   document.getElementById('modalTitle').textContent = 'Loading…';
 
   try {
     const { Media: m } = await gql(DETAIL_QUERY, { id });
+    currentMedia = m;
 
     // Dynamic SEO — update title and meta for this anime
     const animeTitle = m.title.english || m.title.romaji;
@@ -296,7 +343,7 @@ async function openDetail(id) {
     document.getElementById('modalPoster').src = m.coverImage.extraLarge || m.coverImage.large;
 
     // title
-    document.getElementById('modalTitle').textContent = m.title.english || m.title.romaji;
+    document.getElementById('modalTitle').textContent = animeTitle;
 
     // tags / genres
     document.getElementById('modalTags').innerHTML = (m.genres || [])
@@ -312,6 +359,66 @@ async function openDetail(id) {
     if (m.status)        stats.push(`<span><span class="stat-label">Status</span> ${m.status.replace(/_/g,' ')}</span>`);
     if (m.seasonYear)    stats.push(`<span><span class="stat-label">Season</span> ${(m.season||'').charAt(0)+(m.season||'').slice(1).toLowerCase()} ${m.seasonYear}</span>`);
     document.getElementById('modalStats').innerHTML = stats.join('');
+
+    // theater player setup
+    empty.style.backgroundImage = `url(${m.bannerImage || m.coverImage.extraLarge})`;
+    if (m.trailer && m.trailer.id) {
+      document.getElementById('playerTitle').textContent = `${animeTitle} — Official Trailer & Preview`;
+      document.getElementById('playerBadgeText').textContent = 'OFFICIAL PREVIEW';
+    } else {
+      document.getElementById('playerTitle').textContent = `${animeTitle} — Streams & Previews`;
+      document.getElementById('playerBadgeText').textContent = 'AVAILABLE STREAMS';
+    }
+
+    if (autoPlay) {
+      playCurrentTrailer(true);
+      document.getElementById('theaterPlayer')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Official Streaming Links
+    const streams = (m.externalLinks || []).filter(l => l.type === 'STREAMING' || /crunchyroll|netflix|hulu|hidive|funimation|youtube|bilibili|iq/i.test(l.site || ''));
+    const streamingContainer = document.getElementById('modalStreaming');
+    if (streams.length > 0) {
+      streamingContainer.innerHTML = streams.map(s => {
+        const siteLower = (s.site || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return `
+          <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="stream-link ${siteLower}">
+            <span>▶ Watch on ${s.site}</span>
+          </a>
+        `;
+      }).join('');
+    } else {
+      const q = encodeURIComponent(animeTitle + ' watch anime online');
+      streamingContainer.innerHTML = `
+        <a href="https://www.crunchyroll.com/search?q=${encodeURIComponent(m.title.romaji)}" target="_blank" rel="noopener" class="stream-link crunchyroll">
+          <span>Search on Crunchyroll</span>
+        </a>
+        <a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener" class="stream-link youtube">
+          <span>Watch on YouTube</span>
+        </a>
+      `;
+    }
+
+    // Streaming Episodes
+    const epsList = m.streamingEpisodes || [];
+    const episodesContainer = document.getElementById('modalEpisodes');
+    const episodesTitle = document.getElementById('episodesTitle');
+    if (epsList.length > 0) {
+      episodesTitle.textContent = `🎬 Episodes Available (${epsList.length})`;
+      episodesContainer.innerHTML = epsList.map(ep => {
+        const safeTitle = (ep.title || 'Episode').replace(/'/g, "\\'");
+        return `
+          <div class="episode-card" onclick="playEpisode('${ep.url}', '${safeTitle}')" title="Play ${ep.title}">
+            <img src="${ep.thumbnail || m.coverImage.large}" alt="${ep.title}" loading="lazy">
+            <div class="ep-play"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+            <div class="ep-title">${ep.title}</div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      episodesTitle.textContent = '🎬 Episodes';
+      episodesContainer.innerHTML = '<span class="no-episodes">No individual episode clips provided by AniList. See "Where to Watch" links above.</span>';
+    }
 
     // desc
     document.getElementById('modalDesc').textContent = stripHtml(m.description);
@@ -330,20 +437,13 @@ async function openDetail(id) {
     document.getElementById('modalRecs').innerHTML = recs.map(r => {
       const rec = r.mediaRecommendation;
       return `
-        <div class="rec-card" onclick="closeModal(); openDetail(${rec.id})">
+        <div class="rec-card" onclick="openDetail(${rec.id}, false)">
           <img src="${rec.coverImage.large}" alt="${rec.title.romaji}" loading="lazy">
           <span>${rec.title.romaji}</span>
         </div>
       `;
     }).join('') || '<span style="color:var(--text-muted);font-size:.82rem;">No recommendations yet.</span>';
 
-    // trailer
-    if (m.trailer && m.trailer.site === 'youtube') {
-      document.getElementById('modalTrailer').innerHTML = `
-        <h3 class="modal-section-heading">Trailer</h3>
-        <iframe src="https://www.youtube.com/embed/${m.trailer.id}" allowfullscreen loading="lazy"></iframe>
-      `;
-    }
   } catch (err) {
     document.getElementById('modalTitle').textContent = '⚠️ Failed to load';
     document.getElementById('modalDesc').textContent = err.message;
@@ -358,8 +458,15 @@ function closeDetail(e) {
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
-  // kill trailer playback
-  document.getElementById('modalTrailer').innerHTML = '';
+  // Stop video playback completely
+  const iframe = document.getElementById('videoIframe');
+  if (iframe) {
+    iframe.src = '';
+    iframe.classList.remove('active');
+  }
+  const empty = document.getElementById('playerEmpty');
+  if (empty) empty.style.display = 'flex';
+
   // Reset SEO to default
   document.title = 'AnimeHub — Watch, Discover & Track Anime Online | Trending, Popular & Top Rated Anime';
   document.querySelector('meta[name="description"]')?.setAttribute('content',

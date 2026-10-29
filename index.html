@@ -104,7 +104,13 @@
       <h1 class="hero-title" id="heroTitle"></h1>
       <p class="hero-desc" id="heroDesc"></p>
       <div class="hero-meta" id="heroMeta"></div>
-      <button class="btn-primary" id="heroBtn" onclick="openDetail(heroAnimeId)">View Details</button>
+      <div class="hero-actions">
+        <button class="btn-primary" id="heroPlayBtn" onclick="openDetail(heroAnimeId, true)">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Watch Now
+        </button>
+        <button class="btn-secondary" id="heroBtn" onclick="openDetail(heroAnimeId, false)">View Details</button>
+      </div>
     </div>
   </section>
 
@@ -137,21 +143,38 @@
           <h2 id="modalTitle" class="modal-title"></h2>
           <div class="modal-tags" id="modalTags"></div>
           <div class="modal-stats" id="modalStats"></div>
-          <p class="modal-desc" id="modalDesc"></p>
 
-          <h3 class="modal-section-heading">📺 Where to Watch</h3>
+          <!-- ===== IN-APP THEATER PLAYER ===== -->
+          <div class="theater-player" id="theaterPlayer">
+            <div class="player-bar">
+              <span class="player-live-badge"><span class="dot"></span> <span id="playerBadgeText">VIDEO PLAYER</span></span>
+              <span class="player-title" id="playerTitle">Select a video or episode to play</span>
+            </div>
+            <div class="player-screen" id="playerScreen">
+              <div class="player-empty" id="playerEmpty">
+                <button class="play-trigger-btn" id="playTriggerBtn" onclick="playCurrentTrailer()">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  <span>Play Trailer / Video</span>
+                </button>
+              </div>
+              <iframe id="videoIframe" class="video-iframe" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+            </div>
+          </div>
+
+          <h3 class="modal-section-heading">📺 Where to Watch (Official Streams)</h3>
           <div class="streaming-links" id="modalStreaming"></div>
 
-          <h3 class="modal-section-heading">🎬 Episodes</h3>
+          <h3 class="modal-section-heading" id="episodesTitle">🎬 Episodes Available</h3>
           <div class="episodes-row" id="modalEpisodes"></div>
+
+          <h3 class="modal-section-heading">Overview</h3>
+          <p class="modal-desc" id="modalDesc"></p>
 
           <h3 class="modal-section-heading">Characters</h3>
           <div class="characters-row" id="modalCharacters"></div>
 
           <h3 class="modal-section-heading">Recommendations</h3>
           <div class="recommendations-row" id="modalRecs"></div>
-
-          <div class="modal-trailer" id="modalTrailer"></div>
         </div>
       </div>
     </div>
