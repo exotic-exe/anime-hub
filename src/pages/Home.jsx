@@ -12,16 +12,16 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'AnimeHub — Watch, Track & Discover Anime Online | Free Anime Explorer';
+    document.title = 'ExoticHub — Watch, Track & Discover Anime Online | Stream Anime';
     document.querySelector('meta[name="description"]')?.setAttribute(
       'content',
-      'AnimeHub by exotic-exe: The fastest lightweight anime platform. Discover trending anime, track series, watch high-definition streams with Artplayer, custom subtitles (CC), and skip intro.'
+      'ExoticHub: The fastest lightweight anime platform. Discover trending anime, track series, watch high-definition streams with Artplayer, custom subtitles (CC), and skip intro.'
     );
 
     async function loadData() {
       try {
         const [t, p, tr] = await Promise.all([
-          fetchTrending(1, 16),
+          fetchTrending(1, 18),
           fetchPopular(1, 12),
           fetchTopRated(1, 12),
         ]);
@@ -38,7 +38,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0b0d13] text-[#e4e6ed]">
+    <div className="min-h-screen bg-[#030712] text-[#e2e8f0]">
       <Navbar />
 
       {/* Hero with #1 Trending Anime */}
@@ -48,12 +48,12 @@ export default function Home() {
         {/* Trending Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Flame className="w-5 h-5 text-[#ff6b6b]" />
+            <Flame className="w-5 h-5 text-[#38bdf8]" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Trending Now</h2>
           </div>
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#cae962] rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-gray-600 border-t-[#0284c7] rounded-full animate-spin"></div>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -67,7 +67,7 @@ export default function Home() {
         {/* Most Popular Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Star className="w-5 h-5 text-[#cae962]" />
+            <Star className="w-5 h-5 text-[#60a5fa]" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Most Popular</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -80,7 +80,7 @@ export default function Home() {
         {/* Top Rated Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Trophy className="w-5 h-5 text-[#ffa502]" />
+            <Trophy className="w-5 h-5 text-[#93c5fd]" />
             <h2 className="text-xl sm:text-2xl font-black text-white">Top Rated</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -91,9 +91,9 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[#1f2437] py-8 text-center text-xs text-gray-500 mt-16">
-        <p>Powered by AniList GraphQL &bull; Built with React &amp; Vite by exotic-exe</p>
+      {/* Footer without powered-by text */}
+      <footer className="border-t border-[#1e293b] py-8 text-center text-xs text-gray-500 mt-16">
+        <p>© 2026 ExoticHub. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -16,12 +16,12 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0b0d13]/90 backdrop-blur-md border-b border-[#1f2437]">
+    <header className="sticky top-0 z-50 bg-[#030712]/90 backdrop-blur-md border-b border-[#1e293b]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-2 text-xl font-black text-white hover:opacity-90">
-          <span className="text-2xl">⛩️</span>
-          <span>Anime<span className="text-[#cae962]">Hub</span></span>
+          <span className="text-2xl text-[#38bdf8]">⚡</span>
+          <span>Exotic<span className="text-[#38bdf8]">Hub</span></span>
         </Link>
 
         {/* Search Bar */}
@@ -31,8 +31,8 @@ export default function Navbar() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search anime..."
-            className="w-full bg-[#12151f] border border-[#1f2437] rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#cae962]"
+            placeholder="Search anime on ExoticHub..."
+            className="w-full bg-[#0a101f] border border-[#1e293b] rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8]"
           />
         </form>
 
@@ -42,21 +42,21 @@ export default function Navbar() {
             to="/"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition"
           >
-            <Flame className="w-3.5 h-3.5 text-[#ff6b6b]" />
+            <Flame className="w-3.5 h-3.5 text-[#38bdf8]" />
             Trending
           </Link>
           <Link
             to="/most-popular"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition"
           >
-            <Star className="w-3.5 h-3.5 text-[#cae962]" />
+            <Star className="w-3.5 h-3.5 text-[#60a5fa]" />
             Popular
           </Link>
           <Link
             to="/az-list"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/5 transition"
           >
-            <Trophy className="w-3.5 h-3.5 text-[#ffa502]" />
+            <Trophy className="w-3.5 h-3.5 text-[#93c5fd]" />
             Top Rated
           </Link>
         </nav>
@@ -72,15 +72,15 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#12151f] border-b border-[#1f2437] px-4 py-4 space-y-3">
+        <div className="md:hidden bg-[#070d1e] border-b border-[#1e293b] px-4 py-4 space-y-3">
           <form onSubmit={handleSearch} className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search anime..."
-              className="w-full bg-[#161a27] border border-[#1f2437] rounded-full pl-9 pr-4 py-2 text-xs text-white"
+              placeholder="Search anime on ExoticHub..."
+              className="w-full bg-[#0d1527] border border-[#1e293b] rounded-full pl-9 pr-4 py-2 text-xs text-white"
             />
           </form>
           <div className="flex flex-col gap-1 pt-2">

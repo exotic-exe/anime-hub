@@ -18,10 +18,10 @@ export default function Watch() {
         const data = await fetchAnimeDetails(id);
         setAnime(data);
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
-        document.title = `Watch ${animeTitle} Online — AnimeHub`;
+        document.title = `Watch ${animeTitle} Online — ExoticHub`;
         document.querySelector('meta[name="description"]')?.setAttribute(
           'content',
-          `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on AnimeHub.`
+          `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
       } catch (err) {
         console.error('Failed to load anime for watch', err);
@@ -34,10 +34,10 @@ export default function Watch() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b0d13] text-[#e4e6ed]">
+      <div className="min-h-screen bg-[#030712] text-[#e2e8f0]">
         <Navbar />
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="w-10 h-10 border-2 border-gray-600 border-t-[#cae962] rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-2 border-gray-600 border-t-[#0284c7] rounded-full animate-spin"></div>
         </div>
       </div>
     );
@@ -45,12 +45,12 @@ export default function Watch() {
 
   if (!anime) {
     return (
-      <div className="min-h-screen bg-[#0b0d13] text-[#e4e6ed]">
+      <div className="min-h-screen bg-[#030712] text-[#e2e8f0]">
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-16 text-center">
           <p className="text-gray-400">Anime not found.</p>
-          <Link to="/" className="inline-block mt-4 text-[#cae962] font-bold">
-            ← Back to Home
+          <Link to="/" className="inline-block mt-4 text-[#38bdf8] font-bold">
+            ← Back to ExoticHub Home
           </Link>
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function Watch() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#0b0d13] text-[#e4e6ed]">
+    <div className="min-h-screen bg-[#030712] text-[#e2e8f0]">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -92,9 +92,9 @@ export default function Watch() {
               </h1>
               <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-400 font-semibold">
                 {anime.averageScore && (
-                  <span className="flex items-center gap-1 text-[#cae962]">
-                    <Star className="w-4 h-4 fill-current" />
-                    {anime.averageScore}%
+                  <span className="flex items-center gap-1 text-[#38bdf8]">
+                    <Star className="w-4 h-4 fill-current text-[#38bdf8]" />
+                    {anime.averageScore}% Score
                   </span>
                 )}
                 <span>• {anime.format || 'TV'}</span>
@@ -108,13 +108,13 @@ export default function Watch() {
           </div>
 
           {/* Episode List Sidebar */}
-          <div className="bg-[#12151f] border border-[#1f2437] rounded-2xl p-4 flex flex-col h-[520px] lg:h-[620px]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1f2437] mb-3">
+          <div className="bg-[#070c1a] border border-[#1e293b] rounded-2xl p-4 flex flex-col h-[520px] lg:h-[620px]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#1e293b] mb-3">
               <div className="flex items-center gap-2 font-black text-white text-sm">
-                <Layers className="w-4 h-4 text-[#cae962]" />
+                <Layers className="w-4 h-4 text-[#38bdf8]" />
                 Episodes ({episodesCount})
               </div>
-              <span className="text-xs text-gray-400 font-semibold">
+              <span className="text-xs text-[#38bdf8] font-bold">
                 Playing EP {selectedEp}
               </span>
             </div>
@@ -126,8 +126,8 @@ export default function Watch() {
                   onClick={() => setSelectedEp(ep.number)}
                   className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition duration-200 ${
                     selectedEp === ep.number
-                      ? 'bg-[#cae962]/15 border border-[#cae962]/50 text-[#cae962]'
-                      : 'bg-[#161a27] hover:bg-white/5 border border-transparent text-gray-300'
+                      ? 'bg-[#0284c7]/25 border border-[#38bdf8] text-[#38bdf8]'
+                      : 'bg-[#0a101f] hover:bg-white/5 border border-[#1e293b]/60 text-gray-300'
                   }`}
                 >
                   <div className="w-16 h-10 rounded-lg overflow-hidden flex-shrink-0 relative bg-black">
@@ -136,7 +136,7 @@ export default function Watch() {
                       alt={ep.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <Play className="w-3.5 h-3.5 fill-current" />
                     </div>
                   </div>
@@ -144,7 +144,7 @@ export default function Watch() {
                     <div className="text-xs font-bold truncate">
                       {ep.title}
                     </div>
-                    <div className="text-[10px] text-gray-500 font-semibold mt-0.5">
+                    <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
                       Episode {ep.number}
                     </div>
                   </div>

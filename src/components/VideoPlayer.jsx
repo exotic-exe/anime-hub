@@ -61,7 +61,7 @@ export default function VideoPlayer({
       playsInline: true,
       autoPlayback: true,
       airplay: true,
-      theme: '#cae962', // oni-chan's lime theme
+      theme: '#0284c7', // Dark Electric Blue
       moreVideoAttr: {
         crossOrigin: 'anonymous',
       },
@@ -80,7 +80,7 @@ export default function VideoPlayer({
       controls: [
         {
           position: 'right',
-          html: '<span style="font-size:12px; font-weight:bold; background:rgba(202,233,98,0.2); padding:3px 6px; border-radius:4px; color:#cae962;">💬 CC</span>',
+          html: '<span style="font-size:12px; font-weight:bold; background:rgba(2,132,199,0.25); padding:3px 6px; border-radius:4px; color:#38bdf8;">💬 CC</span>',
           tooltip: 'Toggle Captions (Subtitles)',
           click: function () {
             art.subtitle.show = !art.subtitle.show;
@@ -119,10 +119,10 @@ export default function VideoPlayer({
       if (onEnded) onEnded();
     });
 
-    // Skip Intro layer from oni-chan
+    // Skip Intro layer
     art.layers.add({
       name: 'skip-intro',
-      html: '<button style="background: rgba(202,233,98,0.95); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; font-size: 13px;">Skip Intro (85s)</button>',
+      html: '<button style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; font-size: 13px; box-shadow: 0 4px 12px rgba(2,132,199,0.4);">Skip Intro (85s)</button>',
       style: { position: 'absolute', bottom: '80px', right: '20px' },
       click: function () {
         art.video.currentTime = 90;
@@ -131,10 +131,10 @@ export default function VideoPlayer({
       },
     });
 
-    // Skip Outro layer from oni-chan
+    // Skip Outro layer
     art.layers.add({
       name: 'skip-outro',
-      html: '<button style="background: rgba(202,233,98,0.95); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; font-size: 13px;">Skip Outro</button>',
+      html: '<button style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; font-size: 13px; box-shadow: 0 4px 12px rgba(2,132,199,0.4);">Skip Outro</button>',
       style: { position: 'absolute', bottom: '80px', right: '20px' },
       click: function () {
         if (onEnded) onEnded();
@@ -180,20 +180,20 @@ export default function VideoPlayer({
   };
 
   return (
-    <div className="w-full bg-[#08090e] border border-[#1f2437] rounded-2xl overflow-hidden shadow-2xl">
+    <div className="w-full bg-[#050814] border border-[#1e293b] rounded-2xl overflow-hidden shadow-2xl">
       {/* Player Header Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border-b border-[#1f2437] text-xs">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#070c1a] border-b border-[#1e293b] text-xs">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#cae962]/15 text-[#cae962] font-bold tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-[#cae962] animate-pulse"></span>
-            STREAM
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0284c7]/20 text-[#38bdf8] font-bold tracking-wider border border-[#0284c7]/30">
+            <span className="w-2 h-2 rounded-full bg-[#38bdf8] animate-pulse"></span>
+            EXOTICHUB
           </span>
-          <span className="text-gray-300 font-semibold truncate max-w-[280px] sm:max-w-[500px]">
+          <span className="text-gray-200 font-semibold truncate max-w-[280px] sm:max-w-[500px]">
             {animeName} — {episodeTitle}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#00cec9]/15 text-[#00cec9] font-semibold">
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#0284c7]/20 text-[#38bdf8] font-semibold border border-[#0284c7]/30">
             💬 CC: {ccStatus}
           </span>
         </div>
@@ -205,24 +205,24 @@ export default function VideoPlayer({
       </div>
 
       {/* Stream & Caption Input Bar */}
-      <form onSubmit={handleCustomLoad} className="flex flex-wrap items-center gap-2 p-3 bg-white/[0.02] border-t border-[#1f2437]">
+      <form onSubmit={handleCustomLoad} className="flex flex-wrap items-center gap-2 p-3 bg-[#070c1a]/60 border-t border-[#1e293b]">
         <input
           type="text"
           value={streamInput}
           onChange={(e) => setStreamInput(e.target.value)}
           placeholder="Paste .m3u8 stream or MP4 URL..."
-          className="flex-1 min-w-[180px] bg-[#161a27] border border-[#1f2437] rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#cae962]"
+          className="flex-1 min-w-[180px] bg-[#0a101f] border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#38bdf8]"
         />
         <input
           type="text"
           value={captionInput}
           onChange={(e) => setCaptionInput(e.target.value)}
           placeholder="Optional: Subtitle .vtt URL..."
-          className="flex-1 min-w-[150px] bg-[#161a27] border border-[#1f2437] rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#cae962]"
+          className="flex-1 min-w-[150px] bg-[#0a101f] border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#38bdf8]"
         />
         <button
           type="submit"
-          className="px-4 py-1.5 rounded-lg bg-[#cae962] hover:bg-[#b5d64e] text-black font-bold text-xs transition duration-200"
+          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] hover:from-[#0369a1] hover:to-[#0284c7] text-white font-bold text-xs transition duration-200 shadow-md shadow-[#0284c7]/30"
         >
           Load Stream &amp; CC
         </button>

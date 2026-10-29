@@ -7,9 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: '#0b0d13',
-        card: '#161a27',
-        accent: '#cae962',
+        dark: '#030712',
+        card: '#0a101f',
+        accent: '#0284c7',
+        accentLight: '#38bdf8',
       },
     },
   },
