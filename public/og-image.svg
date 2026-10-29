@@ -18,8 +18,9 @@
   <circle cx="1000" cy="180" r="220" fill="#0284c7" opacity="0.12"/>
   <circle cx="200" cy="500" r="180" fill="#38bdf8" opacity="0.08"/>
   
-  <!-- Icon -->
-  <text x="100" y="240" font-size="80" fill="#38bdf8">⚡</text>
+  <!-- Icon Badge -->
+  <rect x="100" y="170" width="76" height="76" rx="18" fill="url(#blueGlow)"/>
+  <text x="138" y="226" font-family="Inter, system-ui, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle">E</text>
   
   <!-- Title -->
   <text x="100" y="340" font-family="Inter, system-ui, sans-serif" font-size="76" font-weight="900" fill="#ffffff">Exotic<tspan fill="#38bdf8">Hub</tspan></text>
@@ -32,5 +33,5 @@
   <text x="135" y="482" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="800" fill="#ffffff">STREAM ANIME</text>
   
   <!-- Features -->
-  <text x="100" y="550" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#64748b">🔥 Trending  ·  ⭐ Most Popular  ·  🏆 Top Rated  ·  💬 Custom Subtitles (CC)</text>
+  <text x="100" y="550" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#64748b">Trending  ·  Most Popular  ·  Top Rated  ·  Custom Subtitles (CC)</text>
 </svg>

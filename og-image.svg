@@ -1,30 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0b0d13"/>
-      <stop offset="50%" style="stop-color:#161a27"/>
-      <stop offset="100%" style="stop-color:#0b0d13"/>
+      <stop offset="0%" style="stop-color:#030712"/>
+      <stop offset="50%" style="stop-color:#0a101f"/>
+      <stop offset="100%" style="stop-color:#030712"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#6c5ce7"/>
-      <stop offset="100%" style="stop-color:#00cec9"/>
+    <linearGradient id="blueGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0284c7"/>
+      <stop offset="100%" style="stop-color:#38bdf8"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect x="0" y="580" width="1200" height="4" fill="url(#accent)" opacity="0.8"/>
-  <rect x="0" y="46" width="1200" height="4" fill="url(#accent)" opacity="0.3"/>
-  <!-- Decorative circles -->
-  <circle cx="1050" cy="150" r="200" fill="#6c5ce7" opacity="0.06"/>
-  <circle cx="150" cy="480" r="150" fill="#00cec9" opacity="0.05"/>
-  <!-- Icon -->
-  <text x="100" y="260" font-size="80" fill="#fff">⛩️</text>
+  <rect x="0" y="620" width="1200" height="10" fill="url(#blueGlow)"/>
+  <rect x="0" y="0" width="1200" height="4" fill="url(#blueGlow)" opacity="0.6"/>
+  
+  <!-- Decorative Glows -->
+  <circle cx="1000" cy="180" r="220" fill="#0284c7" opacity="0.12"/>
+  <circle cx="200" cy="500" r="180" fill="#38bdf8" opacity="0.08"/>
+  
+  <!-- Icon Badge -->
+  <rect x="100" y="170" width="76" height="76" rx="18" fill="url(#blueGlow)"/>
+  <text x="138" y="226" font-family="Inter, system-ui, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle">E</text>
+  
   <!-- Title -->
-  <text x="100" y="350" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="800" fill="#e4e6ed">AnimeHub</text>
+  <text x="100" y="340" font-family="Inter, system-ui, sans-serif" font-size="76" font-weight="900" fill="#ffffff">Exotic<tspan fill="#38bdf8">Hub</tspan></text>
+  
   <!-- Subtitle -->
-  <text x="100" y="410" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500" fill="#8a8fa8">Watch, Discover &amp; Track Anime Online</text>
-  <!-- Author badge -->
-  <rect x="100" y="450" width="200" height="36" rx="18" fill="#6c5ce7" opacity="0.9"/>
-  <text x="135" y="475" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="700" fill="#fff">by exotic-exe</text>
+  <text x="100" y="410" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#94a3b8">Watch, Track &amp; Discover Anime Online</text>
+  
+  <!-- Badge -->
+  <rect x="100" y="455" width="220" height="40" rx="20" fill="#0284c7" opacity="0.9"/>
+  <text x="135" y="482" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="800" fill="#ffffff">STREAM ANIME</text>
+  
   <!-- Features -->
-  <text x="100" y="540" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#5c6180">🔥 Trending  ·  ⭐ Popular  ·  🏆 Top Rated  ·  🔍 Search  ·  📺 Watch</text>
+  <text x="100" y="550" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#64748b">Trending  ·  Most Popular  ·  Top Rated  ·  Custom Subtitles (CC)</text>
 </svg>

@@ -19,8 +19,10 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-[#030712]/90 backdrop-blur-md border-b border-[#1e293b]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2 text-xl font-black text-white hover:opacity-90">
-          <span className="text-2xl text-[#38bdf8]">⚡</span>
+        <Link to="/" className="flex items-center gap-2.5 text-xl font-black text-white hover:opacity-90">
+          <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0284c7] to-[#38bdf8] flex items-center justify-center font-black text-white text-base shadow-lg shadow-[#0284c7]/30">
+            E
+          </span>
           <span>Exotic<span className="text-[#38bdf8]">Hub</span></span>
         </Link>
 
@@ -87,23 +89,26 @@ export default function Navbar() {
             <Link
               to="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
             >
-              🔥 Trending
+              <Flame className="w-4 h-4 text-[#38bdf8]" />
+              Trending
             </Link>
             <Link
               to="/most-popular"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
             >
-              ⭐ Most Popular
+              <Star className="w-4 h-4 text-[#60a5fa]" />
+              Most Popular
             </Link>
             <Link
               to="/az-list"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
             >
-              🏆 Top Rated
+              <Trophy className="w-4 h-4 text-[#93c5fd]" />
+              Top Rated
             </Link>
           </div>
         </div>

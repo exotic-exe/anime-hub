@@ -22,7 +22,7 @@ export default function Hero({ anime }) {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 w-full">
         <div className="max-w-2xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#0284c7] text-white text-xs font-black tracking-wider uppercase shadow-md shadow-[#0284c7]/30">
-            <span>⚡ SPOTLIGHT</span>
+            <span>SPOTLIGHT</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight">

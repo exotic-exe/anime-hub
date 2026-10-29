@@ -17,6 +17,7 @@ export default function VideoPlayer({
 }) {
   const artRef = useRef(null);
   const instanceRef = useRef(null);
+  const hlsRef = useRef(null);
   const [streamInput, setStreamInput] = useState('');
   const [captionInput, setCaptionInput] = useState('');
   const [activeUrl, setActiveUrl] = useState(url);
@@ -30,9 +31,32 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!artRef.current) return;
 
-    if (instanceRef.current && typeof instanceRef.current.destroy === 'function') {
-      instanceRef.current.destroy(false);
+    // Teardown any prior instance before creating new one
+    if (hlsRef.current) {
+      try {
+        hlsRef.current.stopLoad();
+        hlsRef.current.detachMedia();
+        hlsRef.current.destroy();
+      } catch (e) {}
+      hlsRef.current = null;
+    }
+
+    if (instanceRef.current) {
+      try {
+        if (instanceRef.current.video) {
+          instanceRef.current.video.pause();
+          instanceRef.current.video.removeAttribute('src');
+          instanceRef.current.video.load();
+        }
+        if (typeof instanceRef.current.destroy === 'function') {
+          instanceRef.current.destroy(true);
+        }
+      } catch (e) {}
       instanceRef.current = null;
+    }
+
+    if (artRef.current) {
+      artRef.current.innerHTML = '';
     }
 
     const art = new Artplayer({
@@ -80,7 +104,7 @@ export default function VideoPlayer({
       controls: [
         {
           position: 'right',
-          html: '<span style="font-size:12px; font-weight:bold; background:rgba(2,132,199,0.25); padding:3px 6px; border-radius:4px; color:#38bdf8;">💬 CC</span>',
+          html: '<span style="font-size:12px; font-weight:bold; background:rgba(2,132,199,0.25); padding:3px 8px; border-radius:4px; color:#38bdf8;">CC</span>',
           tooltip: 'Toggle Captions (Subtitles)',
           click: function () {
             art.subtitle.show = !art.subtitle.show;
@@ -90,11 +114,24 @@ export default function VideoPlayer({
         },
       ],
       customType: {
-        m3u8: function (video, m3u8Url) {
+        m3u8: function (video, m3u8Url, artInstance) {
           if (Hls.isSupported()) {
-            const hls = new Hls();
+            if (hlsRef.current) {
+              try {
+                hlsRef.current.stopLoad();
+                hlsRef.current.detachMedia();
+                hlsRef.current.destroy();
+              } catch (e) {}
+              hlsRef.current = null;
+            }
+            const hls = new Hls({
+              enableWorker: true,
+              lowLatencyMode: true,
+            });
             hls.loadSource(m3u8Url);
             hls.attachMedia(video);
+            hlsRef.current = hls;
+            if (artInstance) artInstance.hls = hls;
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = m3u8Url;
           }
@@ -109,7 +146,7 @@ export default function VideoPlayer({
     instanceRef.current = art;
 
     art.on('ready', () => {
-      if (autoskip && art.video.currentTime < 85) {
+      if (autoskip && art.video && art.video.currentTime < 85) {
         art.video.currentTime = 85;
         art.notice.show = 'Intro skipped automatically';
       }
@@ -125,7 +162,7 @@ export default function VideoPlayer({
       html: '<button style="background: #0284c7; color: #fff; border: 1px solid #38bdf8; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; font-size: 13px; box-shadow: 0 4px 12px rgba(2,132,199,0.4);">Skip Intro (85s)</button>',
       style: { position: 'absolute', bottom: '80px', right: '20px' },
       click: function () {
-        art.video.currentTime = 90;
+        if (art.video) art.video.currentTime = 90;
         this.style.display = 'none';
         art.notice.show = 'Intro skipped';
       },
@@ -143,6 +180,7 @@ export default function VideoPlayer({
     });
 
     art.on('video:timeupdate', () => {
+      if (!art.video) return;
       const current = art.video.currentTime;
       const duration = art.video.duration;
       const skipIntroBtn = art.layers['skip-intro'];
@@ -162,10 +200,52 @@ export default function VideoPlayer({
     });
 
     return () => {
-      if (art && typeof art.destroy === 'function') {
-        art.destroy(false);
+      // 1. Destroy HLS instance and cancel buffer downloading
+      if (hlsRef.current) {
+        try {
+          hlsRef.current.stopLoad();
+          hlsRef.current.detachMedia();
+          hlsRef.current.destroy();
+        } catch (e) {
+          console.error('Error destroying HLS:', e);
+        }
+        hlsRef.current = null;
       }
-      instanceRef.current = null;
+
+      // 2. Pause and reset any video elements in container
+      if (artRef.current) {
+        try {
+          const videos = artRef.current.querySelectorAll('video');
+          videos.forEach((vid) => {
+            vid.pause();
+            vid.removeAttribute('src');
+            vid.load();
+          });
+        } catch (e) {}
+      }
+
+      // 3. Destroy Artplayer completely
+      if (instanceRef.current) {
+        try {
+          const a = instanceRef.current;
+          if (a.video) {
+            a.video.pause();
+            a.video.removeAttribute('src');
+            a.video.load();
+          }
+          if (typeof a.destroy === 'function') {
+            a.destroy(true);
+          }
+        } catch (e) {
+          console.error('Error destroying Artplayer:', e);
+        }
+        instanceRef.current = null;
+      }
+
+      // 4. Wipe DOM container
+      if (artRef.current) {
+        artRef.current.innerHTML = '';
+      }
     };
   }, [activeUrl, activeSub, poster]);
 
@@ -194,7 +274,7 @@ export default function VideoPlayer({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#0284c7]/20 text-[#38bdf8] font-semibold border border-[#0284c7]/30">
-            💬 CC: {ccStatus}
+            CC: {ccStatus}
           </span>
         </div>
       </div>
