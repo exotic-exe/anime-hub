@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0b0d13"/>
+      <stop offset="50%" style="stop-color:#161a27"/>
+      <stop offset="100%" style="stop-color:#0b0d13"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6c5ce7"/>
+      <stop offset="100%" style="stop-color:#00cec9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="580" width="1200" height="4" fill="url(#accent)" opacity="0.8"/>
+  <rect x="0" y="46" width="1200" height="4" fill="url(#accent)" opacity="0.3"/>
+  <!-- Decorative circles -->
+  <circle cx="1050" cy="150" r="200" fill="#6c5ce7" opacity="0.06"/>
+  <circle cx="150" cy="480" r="150" fill="#00cec9" opacity="0.05"/>
+  <!-- Icon -->
+  <text x="100" y="260" font-size="80" fill="#fff">⛩️</text>
+  <!-- Title -->
+  <text x="100" y="350" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="800" fill="#e4e6ed">AnimeHub</text>
+  <!-- Subtitle -->
+  <text x="100" y="410" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500" fill="#8a8fa8">Watch, Discover &amp; Track Anime Online</text>
+  <!-- Author badge -->
+  <rect x="100" y="450" width="200" height="36" rx="18" fill="#6c5ce7" opacity="0.9"/>
+  <text x="135" y="475" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="700" fill="#fff">by exotic-exe</text>
+  <!-- Features -->
+  <text x="100" y="540" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#5c6180">🔥 Trending  ·  ⭐ Popular  ·  🏆 Top Rated  ·  🔍 Search  ·  📺 Watch</text>
+</svg>

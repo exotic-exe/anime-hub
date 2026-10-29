@@ -3,12 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnimeHub — Watch, Discover & Track Anime Online</title>
-  <meta name="description" content="AnimeHub by exotic-exe — Discover and stream anime online. Features Artplayer with skip intro, captions, and responsive dark UI.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛩️</text></svg>">
+
+  <!-- ===== PRIMARY SEO META TAGS ===== -->
+  <title>AnimeHub — Watch, Track &amp; Discover Anime Online | Free Anime Explorer</title>
+  <meta name="title" content="AnimeHub — Watch, Track &amp; Discover Anime Online | Free Anime Explorer">
+  <meta name="description" content="AnimeHub by exotic-exe: The fastest lightweight anime platform. Discover trending anime, track series, watch high-definition streams with Artplayer, custom subtitles (CC), and skip intro.">
+  <meta name="keywords" content="anime, watch anime, anime streaming, anime online, watch anime free, trending anime, anime tracker, anime 2026, anime hub, artplayer anime, exotic-exe, top anime, anime episodes">
+  <meta name="author" content="exotic-exe">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <link rel="canonical" href="https://exotic-exe.vercel.app/">
+  <meta name="theme-color" content="#cae962">
+
+  <!-- ===== OPEN GRAPH (Facebook, Discord, WhatsApp) ===== -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AnimeHub">
+  <meta property="og:url" content="https://exotic-exe.vercel.app/">
+  <meta property="og:title" content="AnimeHub — Watch, Track &amp; Discover Anime Online">
+  <meta property="og:description" content="Discover trending anime, stream with Artplayer, customizable subtitles (CC), and skip intro controls. Powered by exotic-exe.">
+  <meta property="og:image" content="https://exotic-exe.vercel.app/og-image.svg">
+  <meta property="og:image:alt" content="AnimeHub Anime Streaming Platform">
+  <meta property="og:locale" content="en_US">
+
+  <!-- ===== TWITTER CARD ===== -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://exotic-exe.vercel.app/">
+  <meta name="twitter:title" content="AnimeHub — Watch, Track &amp; Discover Anime Online">
+  <meta name="twitter:description" content="Discover trending anime, stream with Artplayer, customizable subtitles (CC), and skip intro controls.">
+  <meta name="twitter:image" content="https://exotic-exe.vercel.app/og-image.svg">
+  <meta name="twitter:creator" content="@exoticexe">
+
+  <!-- ===== STRUCTURED DATA (Schema.org JSON-LD for Google Rich Snippets) ===== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://exotic-exe.vercel.app/#website",
+        "url": "https://exotic-exe.vercel.app/",
+        "name": "AnimeHub",
+        "alternateName": ["AnimeHub Online", "exotic-exe AnimeHub"],
+        "description": "Discover and stream anime online with custom captions and skip intro.",
+        "publisher": {
+          "@type": "Person",
+          "name": "exotic-exe",
+          "url": "https://github.com/exotic-exe"
+        },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://exotic-exe.vercel.app/search?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://exotic-exe.vercel.app/#webapp",
+        "name": "AnimeHub Player",
+        "url": "https://exotic-exe.vercel.app/",
+        "applicationCategory": "EntertainmentApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- ===== PERFORMANCE / PRECONNECT ===== -->
+  <link rel="preconnect" href="https://graphql.anilist.co">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="dns-prefetch" href="https://s4.anilist.co">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛩️</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body class="bg-[#0b0d13] text-[#e4e6ed] min-h-screen">
   <div id="root"></div>

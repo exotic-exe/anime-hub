@@ -15,8 +15,10 @@ export default function Search() {
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      document.title = 'Search Anime — AnimeHub';
       return;
     }
+    document.title = `Search "${query.trim()}" — AnimeHub`;
     async function perform() {
       try {
         setLoading(true);

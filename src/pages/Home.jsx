@@ -12,6 +12,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = 'AnimeHub — Watch, Track & Discover Anime Online | Free Anime Explorer';
+    document.querySelector('meta[name="description"]')?.setAttribute(
+      'content',
+      'AnimeHub by exotic-exe: The fastest lightweight anime platform. Discover trending anime, track series, watch high-definition streams with Artplayer, custom subtitles (CC), and skip intro.'
+    );
+
     async function loadData() {
       try {
         const [t, p, tr] = await Promise.all([

@@ -17,6 +17,12 @@ export default function Watch() {
         setLoading(true);
         const data = await fetchAnimeDetails(id);
         setAnime(data);
+        const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
+        document.title = `Watch ${animeTitle} Online — AnimeHub`;
+        document.querySelector('meta[name="description"]')?.setAttribute(
+          'content',
+          `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on AnimeHub.`
+        );
       } catch (err) {
         console.error('Failed to load anime for watch', err);
       } finally {

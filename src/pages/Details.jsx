@@ -16,6 +16,12 @@ export default function Details() {
         setLoading(true);
         const data = await fetchAnimeDetails(id);
         setAnime(data);
+        const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
+        document.title = `${animeTitle} — Details, Episodes & Synopsis | AnimeHub`;
+        document.querySelector('meta[name="description"]')?.setAttribute(
+          'content',
+          `Discover ${animeTitle}: episodes, characters, ratings, and synopsis on AnimeHub.`
+        );
       } catch (err) {
         console.error('Failed to load anime details', err);
       } finally {
