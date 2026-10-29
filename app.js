@@ -460,19 +460,23 @@ function switchPlayerMode(mode) {
   if (mode === 'artplayer') {
     document.getElementById('tabHls')?.classList.add('active');
     startArtplayerStream();
-  } else if (mode === 'streams') {
-    document.getElementById('tabStream')?.classList.add('active');
-    document.getElementById('modalStreaming')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
-function playEpisode(url, epTitle) {
-  if (!url) return;
+function playEpisode(epTitle, epNumber) {
+  const animeTitle = currentMedia ? (currentMedia.title.english || currentMedia.title.romaji) : 'Anime';
   const badge = document.getElementById('playerBadgeText');
   const title = document.getElementById('playerTitle');
-  badge.textContent = 'STREAMING EPISODE';
-  title.textContent = epTitle;
-  window.open(url, '_blank', 'noopener,noreferrer');
+  badge.textContent = `EPISODE ${epNumber}`;
+  title.textContent = `${animeTitle} — ${epTitle}`;
+
+  // Start in-app player for this episode immediately
+  const streamUrl = document.getElementById('customStreamInput')?.value.trim();
+  const captionUrl = document.getElementById('customCaptionInput')?.value.trim();
+  initArtplayer(streamUrl || SAMPLE_HLS_STREAM, currentMedia?.bannerImage, `${animeTitle} - ${epTitle}`, captionUrl || DEFAULT_SUBTITLE);
+
+  // Scroll smoothly to player
+  document.getElementById('theaterPlayer')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ── Detail modal ───────────────────────────────────────────
@@ -482,7 +486,7 @@ async function openDetail(id, autoPlay = false) {
   document.body.style.overflow = 'hidden';
 
   // reset
-  ['modalBanner','modalPoster','modalTitle','modalTags','modalStats','modalDesc','modalCharacters','modalRecs','modalStreaming','modalEpisodes']
+  ['modalBanner','modalPoster','modalTitle','modalTags','modalStats','modalDesc','modalCharacters','modalRecs','modalEpisodes']
     .forEach(el => { const d = document.getElementById(el); if (d) d.innerHTML = ''; });
   
   destroyArtplayer();
@@ -543,40 +547,16 @@ async function openDetail(id, autoPlay = false) {
       document.getElementById('theaterPlayer')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    // Official Streaming Links
-    const streams = (m.externalLinks || []).filter(l => l.type === 'STREAMING' || /crunchyroll|netflix|hulu|hidive|funimation|youtube|bilibili|iq/i.test(l.site || ''));
-    const streamingContainer = document.getElementById('modalStreaming');
-    if (streams.length > 0) {
-      streamingContainer.innerHTML = streams.map(s => {
-        const siteLower = (s.site || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        return `
-          <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="stream-link ${siteLower}">
-            <span>▶ Watch on ${s.site}</span>
-          </a>
-        `;
-      }).join('');
-    } else {
-      const q = encodeURIComponent(animeTitle + ' watch anime online');
-      streamingContainer.innerHTML = `
-        <a href="https://www.crunchyroll.com/search?q=${encodeURIComponent(m.title.romaji)}" target="_blank" rel="noopener" class="stream-link crunchyroll">
-          <span>Search on Crunchyroll</span>
-        </a>
-        <a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener" class="stream-link youtube">
-          <span>Watch on YouTube</span>
-        </a>
-      `;
-    }
-
     // Streaming Episodes
     const epsList = m.streamingEpisodes || [];
     const episodesContainer = document.getElementById('modalEpisodes');
     const episodesTitle = document.getElementById('episodesTitle');
     if (epsList.length > 0) {
       episodesTitle.textContent = `🎬 Episodes Available (${epsList.length})`;
-      episodesContainer.innerHTML = epsList.map(ep => {
-        const safeTitle = (ep.title || 'Episode').replace(/'/g, "\\'");
+      episodesContainer.innerHTML = epsList.map((ep, idx) => {
+        const safeTitle = (ep.title || `Episode ${idx + 1}`).replace(/'/g, "\\'");
         return `
-          <div class="episode-card" onclick="playEpisode('${ep.url}', '${safeTitle}')" title="Play ${ep.title}">
+          <div class="episode-card" onclick="playEpisode('${safeTitle}', ${idx + 1})" title="Play ${ep.title}">
             <img src="${ep.thumbnail || m.coverImage.large}" alt="${ep.title}" loading="lazy">
             <div class="ep-play"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
             <div class="ep-title">${ep.title}</div>
@@ -585,7 +565,7 @@ async function openDetail(id, autoPlay = false) {
       }).join('');
     } else {
       episodesTitle.textContent = '🎬 Episodes';
-      episodesContainer.innerHTML = '<span class="no-episodes">No individual episode clips provided by AniList. See "Where to Watch" links above.</span>';
+      episodesContainer.innerHTML = '<span class="no-episodes">Click "Play Anime Stream" above to start streaming in Artplayer.</span>';
     }
 
     // desc
