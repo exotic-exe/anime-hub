@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Film,
   History as HistoryIcon,
+  Server,
   X
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
@@ -227,6 +228,19 @@ export default function Watch() {
     await loadEpisodeStream(epObj, epNum);
   }
 
+  // Switch to universal backup player embed
+  function handleFallbackToBackup() {
+    setStreamUrl('');
+    setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${selectedEp}?track=sub`);
+  }
+
+  // Switch back to Server 1 HD stream
+  async function handleSwitchToHD() {
+    setIframeUrl('');
+    const targetEp = streamEpisodes.find((e) => e.number === selectedEp) || { number: selectedEp };
+    await loadEpisodeStream(targetEp, selectedEp);
+  }
+
   useEffect(() => {
     async function load() {
       try {
@@ -381,12 +395,47 @@ export default function Watch() {
                     selectEpisodeNumber(selectedEp + 1);
                   }
                 }}
+                onFallbackToIframe={handleFallbackToBackup}
               />
               {streamLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-2xl z-10">
                   <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
                 </div>
               )}
+            </div>
+
+            {/* Stream Server / Player Switcher */}
+            <div className="flex flex-wrap items-center justify-between p-2.5 bg-[#0d0d0d] border border-zinc-800 rounded-2xl gap-2 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Server className="w-4 h-4 text-zinc-400" />
+                <span className="text-xs font-bold text-zinc-300">Stream Source:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleSwitchToHD}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    streamUrl && !iframeUrl
+                      ? 'bg-white text-black font-black shadow-md'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800'
+                  }`}
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Server 1 (HD Stream)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFallbackToBackup}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    iframeUrl
+                      ? 'bg-white text-black font-black shadow-md'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800'
+                  }`}
+                >
+                  <Server className="w-3 h-3" />
+                  <span>Server 2 (Backup Player)</span>
+                </button>
+              </div>
             </div>
 
             {/* Resumed from watch history notification */}

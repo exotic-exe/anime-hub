@@ -2,6 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { isSafeUrl } from '../utils/sanitize';
+import { AlertCircle, RefreshCw, Server } from 'lucide-react';
+
+function formatPlaybackTime(seconds) {
+  if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
 
 export default function VideoPlayer({
   url = '',
@@ -14,21 +22,27 @@ export default function VideoPlayer({
   animeName = 'Anime Stream',
   episodeTitle = 'Episode 1',
   onEnded = () => {},
+  onFallbackToIframe = null,
 }) {
   const artRef = useRef(null);
   const instanceRef = useRef(null);
   const hlsRef = useRef(null);
+  const currentTimeRef = useRef(0);
+
   const [streamInput, setStreamInput] = useState('');
   const [captionInput, setCaptionInput] = useState('');
   const [activeUrl, setActiveUrl] = useState(url);
   const [activeIframe, setActiveIframe] = useState(iframe);
   const [activeSub, setActiveSub] = useState(subtitleUrl);
   const [ccStatus, setCcStatus] = useState('OFF');
+  const [playbackError, setPlaybackError] = useState(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Sync state when props change
   useEffect(() => {
     setActiveUrl(url);
     setActiveIframe(iframe);
+    setPlaybackError(null);
   }, [url, iframe]);
 
   useEffect(() => {
@@ -38,8 +52,50 @@ export default function VideoPlayer({
   const hasDirectStream = Boolean(activeUrl && isSafeUrl(activeUrl));
   const hasIframe = Boolean(activeIframe && isSafeUrl(activeIframe));
 
+  // Reconnect and resume playback at exact interrupted timestamp
+  function handleReconnect(targetTime) {
+    const resumeTime = typeof targetTime === 'number' ? targetTime : (playbackError?.time || currentTimeRef.current || 0);
+    setIsReconnecting(true);
+    setPlaybackError(null);
+
+    // Destroy existing HLS instance
+    if (hlsRef.current) {
+      try {
+        hlsRef.current.stopLoad();
+        hlsRef.current.detachMedia();
+        hlsRef.current.destroy();
+      } catch (e) {}
+      hlsRef.current = null;
+    }
+
+    const art = instanceRef.current;
+    if (art && art.video && activeUrl) {
+      try {
+        art.switchUrl(activeUrl).then(() => {
+          if (art.video && resumeTime > 0) {
+            art.video.currentTime = resumeTime;
+          }
+          art.play().catch(() => {});
+          setIsReconnecting(false);
+        }).catch((err) => {
+          console.warn('SwitchUrl failed, reloading source:', err);
+          // Hard reload fallback
+          setActiveUrl('');
+          setTimeout(() => {
+            setActiveUrl(url);
+            setIsReconnecting(false);
+          }, 100);
+        });
+      } catch (err) {
+        setIsReconnecting(false);
+      }
+    } else {
+      setIsReconnecting(false);
+    }
+  }
+
   useEffect(() => {
-    // Teardown any prior instance before creating new one
+    // Teardown prior instance before creating new one
     if (hlsRef.current) {
       try {
         hlsRef.current.stopLoad();
@@ -67,9 +123,11 @@ export default function VideoPlayer({
       artRef.current.innerHTML = '';
     }
 
-    // If using iframe embed or no direct stream, do not mount Artplayer
     if (!hasDirectStream || hasIframe) return;
     if (!artRef.current) return;
+
+    let netRecoveryCount = 0;
+    let mediaRecoveryCount = 0;
 
     const art = new Artplayer({
       container: artRef.current,
@@ -140,15 +198,77 @@ export default function VideoPlayer({
               } catch (e) {}
               hlsRef.current = null;
             }
+
+            // High-reliability VOD HLS buffer configuration
             const hls = new Hls({
               enableWorker: true,
-              lowLatencyMode: true,
+              lowLatencyMode: false, // Must be FALSE for VOD anime episodes to avoid segment starvation
+              backBufferLength: 60,
+              maxBufferLength: 60,
+              maxMaxBufferLength: 120,
+              maxBufferSize: 60 * 1000 * 1000,
+              manifestLoadingTimeOut: 20000,
+              manifestLoadingMaxRetry: 6,
+              levelLoadingTimeOut: 20000,
+              levelLoadingMaxRetry: 6,
+              fragLoadingTimeOut: 30000,
+              fragLoadingMaxRetry: 8,
+              startFragPrefetch: true,
               xhrSetup: streamHeaders
                 ? (xhr) => {
                     Object.entries(streamHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v));
                   }
                 : undefined,
             });
+
+            // Automatic Error Recovery for Network Glitches and Buffer Stalls
+            hls.on(Hls.Events.ERROR, function (event, data) {
+              console.warn('[HLS Error Event]', data.type, data.details, 'Fatal:', data.fatal);
+
+              if (data.fatal) {
+                switch (data.type) {
+                  case Hls.ErrorTypes.NETWORK_ERROR:
+                    if (netRecoveryCount < 3) {
+                      netRecoveryCount++;
+                      console.log(`[HLS] Auto-recovering network error (Attempt ${netRecoveryCount}/3)...`);
+                      hls.startLoad();
+                    } else {
+                      console.error('[HLS] Network error recovery exhausted.');
+                      const time = video.currentTime || currentTimeRef.current || 0;
+                      setPlaybackError({
+                        message: 'Stream connection interrupted.',
+                        time,
+                      });
+                    }
+                    break;
+
+                  case Hls.ErrorTypes.MEDIA_ERROR:
+                    if (mediaRecoveryCount < 3) {
+                      mediaRecoveryCount++;
+                      console.log(`[HLS] Auto-recovering media error (Attempt ${mediaRecoveryCount}/3)...`);
+                      hls.recoverMediaError();
+                    } else {
+                      console.error('[HLS] Media decode error recovery exhausted.');
+                      const time = video.currentTime || currentTimeRef.current || 0;
+                      setPlaybackError({
+                        message: 'Media decoding interrupted.',
+                        time,
+                      });
+                    }
+                    break;
+
+                  default:
+                    console.error('[HLS] Fatal unrecoverable error:', data.details);
+                    const time = video.currentTime || currentTimeRef.current || 0;
+                    setPlaybackError({
+                      message: 'Playback interrupted. Stream stalled or disconnected.',
+                      time,
+                    });
+                    break;
+                }
+              }
+            });
+
             hls.loadSource(m3u8Url);
             hls.attachMedia(video);
             hlsRef.current = hls;
@@ -191,6 +311,16 @@ export default function VideoPlayer({
       if (typeof onEnded === 'function') onEnded();
     });
 
+    // Native Video Error Interception
+    art.on('video:error', () => {
+      const time = art.video?.currentTime || currentTimeRef.current || 0;
+      console.warn('[Video Error] Interrupted at', time);
+      setPlaybackError({
+        message: 'Playback interrupted. Stream timed out or network disconnected.',
+        time,
+      });
+    });
+
     art.layers.add({
       name: 'skip-intro',
       html: '<button style="background: rgba(255,255,255,0.9); color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">Skip Intro</button>',
@@ -215,6 +345,7 @@ export default function VideoPlayer({
     art.on('video:timeupdate', () => {
       if (!art.video) return;
       const current = art.video.currentTime;
+      currentTimeRef.current = current;
       const duration = art.video.duration;
       const skipIntroBtn = art.layers['skip-intro'];
       const skipOutroBtn = art.layers['skip-outro'];
@@ -269,6 +400,7 @@ export default function VideoPlayer({
       if (isSafeUrl(streamInput.trim())) {
         setActiveIframe('');
         setActiveUrl(streamInput.trim());
+        setPlaybackError(null);
       } else {
         alert('Invalid stream URL. Only secure HTTP/HTTPS streams are permitted.');
         return;
@@ -318,7 +450,49 @@ export default function VideoPlayer({
             referrerPolicy="origin"
           />
         ) : hasDirectStream ? (
-          <div ref={artRef} className="w-full h-full" />
+          <>
+            <div ref={artRef} className="w-full h-full" />
+
+            {/* In-Player Error Recovery Overlay */}
+            {playbackError && (
+              <div className="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-in fade-in">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-extrabold text-white">
+                  Playback Interrupted
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 max-w-sm">
+                  {playbackError.message} You were watching at{' '}
+                  <span className="text-white font-bold">{formatPlaybackTime(playbackError.time)}</span>.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => handleReconnect(playbackError.time)}
+                    disabled={isReconnecting}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
+                    <span>Reconnect & Resume at {formatPlaybackTime(playbackError.time)}</span>
+                  </button>
+                  {onFallbackToIframe && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaybackError(null);
+                        onFallbackToIframe();
+                      }}
+                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition border border-zinc-700 flex items-center gap-1.5 active:scale-95"
+                    >
+                      <Server className="w-3.5 h-3.5" />
+                      <span>Switch to Backup Player</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden">
             {poster && (
