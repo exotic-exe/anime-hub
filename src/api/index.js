@@ -353,3 +353,49 @@ export async function searchAnime(keyword, page = 1, perPage = 24) {
   const data = await fetchGraphQL(query, { search: cleanKeyword, page, perPage });
   return data?.Page?.media || [];
 }
+
+/**
+ * Fast search suggestions with popularity ranking for autocomplete dropdown
+ * @param {string} keyword
+ * @param {number} limit
+ * @returns {Promise<Array>}
+ */
+export async function fetchSearchSuggestions(keyword, limit = 6) {
+  const cleanKeyword = sanitizeInput(keyword);
+  if (!cleanKeyword || cleanKeyword.length < 2) return [];
+
+  const query = `
+    query ($search: String, $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        media(search: $search, type: ANIME, sort: [POPULARITY_DESC, SEARCH_MATCH]) {
+          id
+          title {
+            english
+            romaji
+            native
+          }
+          coverImage {
+            medium
+            large
+            extraLarge
+          }
+          format
+          status
+          episodes
+          seasonYear
+          averageScore
+          genres
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await fetchGraphQL(query, { search: cleanKeyword, perPage: limit });
+    return data?.Page?.media || [];
+  } catch (err) {
+    console.warn('Failed to fetch search suggestions:', err);
+    return [];
+  }
+}
+

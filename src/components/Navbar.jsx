@@ -1,27 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, Flame, Star, Trophy, History, Menu, X } from 'lucide-react';
-import { sanitizeInput } from '../api';
+import { Link } from 'react-router-dom';
+import { Flame, Star, Trophy, History, Menu, X } from 'lucide-react';
+import SearchAutocomplete from './SearchAutocomplete';
 
 export default function Navbar() {
-  const [query, setQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const clean = sanitizeInput(query);
-    if (clean) {
-      navigate(`/search?q=${encodeURIComponent(clean)}`);
-      setMobileMenuOpen(false);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
         {/* Brand with Logo */}
-        <Link to="/" className="flex items-center gap-2.5 text-xl font-black text-white hover:opacity-85 transition tracking-tight">
+        <Link to="/" className="flex items-center gap-2.5 text-xl font-black text-white hover:opacity-85 transition tracking-tight flex-shrink-0">
           <img
             src="/logo.jpg"
             alt="ExoticHub Logo"
@@ -30,20 +19,14 @@ export default function Navbar() {
           <span>Exotic<span className="text-zinc-400">Hub</span></span>
         </Link>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-md relative hidden sm:block">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search anime on ExoticHub..."
-            className="w-full bg-[#121212] border border-zinc-800 rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
-          />
-        </form>
+        {/* Live Search Autocomplete (Desktop) */}
+        <SearchAutocomplete
+          className="flex-1 max-w-md hidden sm:block"
+          placeholder="Search anime on ExoticHub..."
+        />
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1.5">
+        <nav className="hidden md:flex items-center gap-1.5 flex-shrink-0">
           <Link
             to="/"
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-900 transition"
@@ -86,16 +69,13 @@ export default function Navbar() {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#0a0a0a] border-b border-zinc-800 px-4 py-4 space-y-3">
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search anime on ExoticHub..."
-              className="w-full bg-[#141414] border border-zinc-800 rounded-full pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
-            />
-          </form>
+          {/* Live Search Autocomplete (Mobile) */}
+          <SearchAutocomplete
+            className="w-full"
+            placeholder="Search anime on ExoticHub..."
+            onAfterSelect={() => setMobileMenuOpen(false)}
+          />
+
           <div className="flex flex-col gap-1 pt-2">
             <Link
               to="/"
@@ -135,3 +115,4 @@ export default function Navbar() {
     </header>
   );
 }
+

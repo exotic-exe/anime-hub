@@ -3,13 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
-import { searchAnime, sanitizeInput } from '../api';
-import { Search as SearchIcon } from 'lucide-react';
+import SearchAutocomplete from '../components/SearchAutocomplete';
+import { searchAnime } from '../api';
 
 export default function Search() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  const [inputVal, setInputVal] = useState(query);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,14 +33,6 @@ export default function Search() {
     perform();
   }, [query]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const clean = sanitizeInput(inputVal);
-    if (clean) {
-      setSearchParams({ q: clean });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
       <Navbar />
@@ -50,22 +41,14 @@ export default function Search() {
         {/* Search header & input */}
         <div className="max-w-xl mx-auto text-center space-y-4 mb-10">
           <h1 className="text-2xl sm:text-3xl font-black text-white">Search ExoticHub</h1>
-          <form onSubmit={handleSubmit} className="relative">
-            <SearchIcon className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              placeholder="Search by title, character, or genre..."
-              className="w-full bg-[#121212] border border-zinc-800 rounded-full pl-12 pr-28 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
-            />
-            <button
-              type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-md shadow-white/5"
-            >
-              Search
-            </button>
-          </form>
+          <p className="text-xs sm:text-sm text-zinc-400 font-semibold">
+            Discover thousands of anime series, movies, and specials with live instant suggestions
+          </p>
+          <SearchAutocomplete
+            className="w-full text-left"
+            inputClassName="py-3 pl-11 pr-10 text-sm rounded-full shadow-lg"
+            placeholder="Search by title, character, or genre..."
+          />
         </div>
 
         {/* Results title */}
