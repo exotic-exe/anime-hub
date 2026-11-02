@@ -1,35 +1,64 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import AnimeCard from '../components/AnimeCard';
 import ContinueWatching from '../components/ContinueWatching';
 import Footer from '../components/Footer';
-import { fetchTrending, fetchPopular, fetchTopRated } from '../api';
-import { Flame, Star, Trophy } from 'lucide-react';
+import { fetchHomePageData, fetchAnimeByGenre } from '../api';
+import {
+  Flame,
+  Star,
+  Trophy,
+  Tv,
+  Film,
+  Sparkles,
+  ArrowRight,
+  Compass,
+  Layers,
+  ChevronRight
+} from 'lucide-react';
+
+const FEATURED_GENRES = [
+  'Action',
+  'Adventure',
+  'Comedy',
+  'Drama',
+  'Fantasy',
+  'Romance',
+  'Sci-Fi',
+  'Supernatural',
+];
 
 export default function Home() {
-  const [trending, setTrending] = useState([]);
-  const [popular, setPopular] = useState([]);
-  const [topRated, setTopRated] = useState([]);
+  const [data, setData] = useState({
+    trending: [],
+    airing: [],
+    popular: [],
+    topRated: [],
+    movies: [],
+    upcoming: [],
+  });
   const [loading, setLoading] = useState(true);
+
+  // Genre Showcase State
+  const [activeGenre, setActiveGenre] = useState('Action');
+  const [genreAnime, setGenreAnime] = useState([]);
+  const [genreLoading, setGenreLoading] = useState(false);
+  const [genreCache, setGenreCache] = useState({});
 
   useEffect(() => {
     document.title = 'ExoticHub — Watch, Track & Discover Anime Online | Stream Anime';
     document.querySelector('meta[name="description"]')?.setAttribute(
       'content',
-      'ExoticHub: The fastest lightweight anime platform. Discover trending anime, track series, watch high-definition streams with Artplayer, custom subtitles (CC), and skip intro.'
+      'ExoticHub: Stream thousands of anime series, movies, and episodes in HD with instant search, resume tracking, and custom player.'
     );
 
     async function loadData() {
       try {
-        const [t, p, tr] = await Promise.all([
-          fetchTrending(1, 18),
-          fetchPopular(1, 12),
-          fetchTopRated(1, 12),
-        ]);
-        setTrending(t || []);
-        setPopular(p || []);
-        setTopRated(tr || []);
+        setLoading(true);
+        const homeData = await fetchHomePageData();
+        setData(homeData);
       } catch (err) {
         console.error('Failed to load anime data', err);
       } finally {
@@ -39,61 +68,272 @@ export default function Home() {
     loadData();
   }, []);
 
+  // Fetch genre anime when activeGenre changes
+  useEffect(() => {
+    if (genreCache[activeGenre]) {
+      setGenreAnime(genreCache[activeGenre]);
+      return;
+    }
+
+    async function loadGenre() {
+      setGenreLoading(true);
+      try {
+        const list = await fetchAnimeByGenre(activeGenre, 1, 12);
+        setGenreCache((prev) => ({ ...prev, [activeGenre]: list || [] }));
+        setGenreAnime(list || []);
+      } catch (err) {
+        console.error('Failed to fetch genre anime:', err);
+      } finally {
+        setGenreLoading(false);
+      }
+    }
+
+    loadGenre();
+  }, [activeGenre]);
+
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
       <Navbar />
 
-      {/* Hero with #1 Trending Anime */}
-      {trending.length > 0 && <Hero anime={trending[0]} />}
+      {/* Hero Banner with #1 Trending Anime */}
+      {data.trending.length > 0 && <Hero anime={data.trending[0]} />}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-14">
         {/* Continue Watching / Watch History Shelf */}
         <ContinueWatching />
 
-        {/* Trending Section */}
+        {/* Section 1: Trending Now */}
         <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Flame className="w-5 h-5 text-zinc-300" />
-            <h2 className="text-xl sm:text-2xl font-black text-white">Trending Now</h2>
+          <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2.5">
+              <Flame className="w-5 h-5 text-white" />
+              <h2 className="text-xl sm:text-2xl font-black text-white">Trending Now</h2>
+            </div>
+            <Link
+              to="/trending"
+              className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
+
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {trending.map((anime) => (
+              {data.trending.slice(0, 18).map((anime) => (
                 <AnimeCard key={anime.id} anime={anime} />
               ))}
             </div>
           )}
         </section>
 
-        {/* Most Popular Section */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Star className="w-5 h-5 text-zinc-300" />
-            <h2 className="text-xl sm:text-2xl font-black text-white">Most Popular</h2>
+        {/* Section 2: Top Airing Anime (Broadcasting Now) */}
+        {data.airing.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2.5">
+                <Tv className="w-5 h-5 text-white" />
+                <h2 className="text-xl sm:text-2xl font-black text-white">Top Airing Episodes</h2>
+              </div>
+              <Link
+                to="/airing"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {data.airing.slice(0, 12).map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 3: Most Popular Anime of All Time */}
+        {data.popular.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2.5">
+                <Star className="w-5 h-5 text-white" />
+                <h2 className="text-xl sm:text-2xl font-black text-white">Most Popular Anime</h2>
+              </div>
+              <Link
+                to="/most-popular"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {data.popular.slice(0, 12).map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 4: Interactive Genre Explorer Showcase */}
+        <section className="bg-[#0c0c0c] border border-zinc-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2.5">
+              <Compass className="w-6 h-6 text-white" />
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-white">Explore By Genre</h2>
+                <p className="text-xs text-zinc-400 font-semibold mt-0.5">
+                  Browse top anime by category and themes
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to={`/genre/${activeGenre}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-md w-fit"
+            >
+              <span>View All {activeGenre} Anime</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {popular.map((anime) => (
-              <AnimeCard key={anime.id} anime={anime} />
-            ))}
+
+          {/* Genre Selection Pills */}
+          <div className="flex gap-2 overflow-x-auto pb-3 mb-6 custom-scroll">
+            {FEATURED_GENRES.map((g) => {
+              const isActive = activeGenre === g;
+              return (
+                <button
+                  key={g}
+                  onClick={() => setActiveGenre(g)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition duration-200 ${
+                    isActive
+                      ? 'bg-white text-black font-black shadow-lg scale-105'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800'
+                  }`}
+                >
+                  {g}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Genre Cards Grid */}
+          {genreLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {genreAnime.map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          )}
         </section>
 
-        {/* Top Rated Section */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Trophy className="w-5 h-5 text-zinc-300" />
-            <h2 className="text-xl sm:text-2xl font-black text-white">Top Rated</h2>
+        {/* Section 5: Top Rated Masterpieces */}
+        {data.topRated.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2.5">
+                <Trophy className="w-5 h-5 text-white" />
+                <h2 className="text-xl sm:text-2xl font-black text-white">Top Rated Masterpieces</h2>
+              </div>
+              <Link
+                to="/top-rated"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {data.topRated.slice(0, 12).map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 6: Top Anime Movies */}
+        {data.movies.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2.5">
+                <Film className="w-5 h-5 text-white" />
+                <h2 className="text-xl sm:text-2xl font-black text-white">Top Anime Movies</h2>
+              </div>
+              <Link
+                to="/movies"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {data.movies.slice(0, 12).map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 7: Top Upcoming Anime */}
+        {data.upcoming.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6 pb-2 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-white" />
+                <h2 className="text-xl sm:text-2xl font-black text-white">Top Upcoming Anime</h2>
+              </div>
+              <Link
+                to="/upcoming"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white transition group"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {data.upcoming.slice(0, 12).map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 8: Browse Full Catalog Callout Banner */}
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-zinc-950 via-[#111] to-zinc-950 border border-zinc-800 p-8 sm:p-12 text-center space-y-4 shadow-2xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-700 text-white mb-2 shadow-inner">
+            <Layers className="w-6 h-6" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {topRated.map((anime) => (
-              <AnimeCard key={anime.id} anime={anime} />
-            ))}
+          <h3 className="text-2xl sm:text-3xl font-black text-white">
+            Discover Over 5,000+ Anime on ExoticHub
+          </h3>
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed font-semibold">
+            Explore our complete database filtered by genres, formats, releasing status, or browse alphabetically with the A-Z directory.
+          </p>
+          <div className="pt-2 flex flex-wrap justify-center gap-3">
+            <Link
+              to="/catalog"
+              className="px-6 py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-black text-xs transition shadow-lg shadow-white/10 flex items-center gap-2"
+            >
+              <span>Explore Full Catalog</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/az-list"
+              className="px-6 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white font-bold text-xs border border-zinc-700 transition"
+            >
+              A-Z Directory
+            </Link>
           </div>
-        </section>
+        </div>
       </main>
 
       {/* Footer */}

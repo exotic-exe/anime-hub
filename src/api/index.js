@@ -131,6 +131,69 @@ export async function fetchTrending(page = 1, perPage = 20) {
   return data?.Page?.media || [];
 }
 
+/**
+ * Single optimized query that retrieves all major home categories in 1 roundtrip
+ */
+export async function fetchHomePageData() {
+  const query = `
+    query {
+      trending: Page(page: 1, perPage: 18) {
+        media(type: ANIME, sort: TRENDING_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      airing: Page(page: 1, perPage: 12) {
+        media(type: ANIME, status: RELEASING, sort: [POPULARITY_DESC, SCORE_DESC]) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      popular: Page(page: 1, perPage: 12) {
+        media(type: ANIME, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      topRated: Page(page: 1, perPage: 12) {
+        media(type: ANIME, sort: SCORE_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      movies: Page(page: 1, perPage: 12) {
+        media(type: ANIME, format: MOVIE, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      upcoming: Page(page: 1, perPage: 12) {
+        media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await fetchGraphQL(query);
+    return {
+      trending: data?.trending?.media || [],
+      airing: data?.airing?.media || [],
+      popular: data?.popular?.media || [],
+      topRated: data?.topRated?.media || [],
+      movies: data?.movies?.media || [],
+      upcoming: data?.upcoming?.media || [],
+    };
+  } catch (err) {
+    console.error('Failed to fetch home page data', err);
+    return {
+      trending: [],
+      airing: [],
+      popular: [],
+      topRated: [],
+      movies: [],
+      upcoming: [],
+    };
+  }
+}
+
+
 export async function fetchPopular(page = 1, perPage = 20) {
   const query = `
     query ($page: Int, $perPage: Int) {
@@ -160,6 +223,131 @@ export async function fetchTopRated(page = 1, perPage = 20) {
   const data = await fetchGraphQL(query, { page, perPage });
   return data?.Page?.media || [];
 }
+
+export async function fetchTopAiring(page = 1, perPage = 20) {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(type: ANIME, status: RELEASING, sort: [POPULARITY_DESC, SCORE_DESC]) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await fetchGraphQL(query, { page, perPage });
+  return data?.Page?.media || [];
+}
+
+export async function fetchUpcoming(page = 1, perPage = 20) {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await fetchGraphQL(query, { page, perPage });
+  return data?.Page?.media || [];
+}
+
+export async function fetchMovies(page = 1, perPage = 20) {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(type: ANIME, format: MOVIE, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await fetchGraphQL(query, { page, perPage });
+  return data?.Page?.media || [];
+}
+
+export async function fetchAnimeByGenre(genre, page = 1, perPage = 20) {
+  const cleanGenre = sanitizeInput(genre);
+  const query = `
+    query ($genre: String, $page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(type: ANIME, genre: $genre, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await fetchGraphQL(query, { genre: cleanGenre, page, perPage });
+  return data?.Page?.media || [];
+}
+
+export async function fetchAnimeCatalog({
+  page = 1,
+  perPage = 24,
+  sort = 'POPULARITY_DESC',
+  genre = null,
+  format = null,
+  status = null,
+  search = null,
+}) {
+  const cleanSearch = sanitizeInput(search);
+  const cleanGenre = sanitizeInput(genre);
+
+  const variables = {
+    page: Number(page) || 1,
+    perPage: Number(perPage) || 24,
+  };
+
+  if (sort) {
+    variables.sort = Array.isArray(sort) ? sort : [sort];
+  } else {
+    variables.sort = ['POPULARITY_DESC'];
+  }
+
+  if (cleanGenre && cleanGenre !== 'All') variables.genre = cleanGenre;
+  if (format && format !== 'ALL') variables.format = format;
+  if (status && status !== 'ALL') variables.status = status;
+  if (cleanSearch) variables.search = cleanSearch;
+
+  const query = `
+    query ($page: Int, $perPage: Int, $sort: [MediaSort], $genre: String, $format: MediaFormat, $status: MediaStatus, $search: String) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          perPage
+          currentPage
+          lastPage
+          hasNextPage
+        }
+        media(type: ANIME, sort: $sort, genre: $genre, format: $format, status: $status, search: $search) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await fetchGraphQL(query, variables);
+    return {
+      media: data?.Page?.media || [],
+      pageInfo: data?.Page?.pageInfo || {
+        total: 0,
+        perPage,
+        currentPage: page,
+        lastPage: 1,
+        hasNextPage: false,
+      },
+    };
+  } catch (err) {
+    console.error('fetchAnimeCatalog error', err);
+    return { media: [], pageInfo: { total: 0, perPage, currentPage: 1, lastPage: 1, hasNextPage: false } };
+  }
+}
+
 
 export async function fetchAnimeDetails(id) {
   const safeId = parseInt(id, 10);

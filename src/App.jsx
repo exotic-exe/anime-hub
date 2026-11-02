@@ -5,6 +5,7 @@ import Details from './pages/Details';
 import Watch from './pages/Watch';
 import Search from './pages/Search';
 import History from './pages/History';
+import Catalog from './pages/Catalog';
 
 export default function App() {
   return (
@@ -16,8 +17,15 @@ export default function App() {
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/search" element={<Search />} />
           <Route path="/history" element={<History />} />
-          <Route path="/most-popular" element={<Home />} />
-          <Route path="/az-list" element={<Home />} />
+          <Route path="/trending" element={<Catalog />} />
+          <Route path="/most-popular" element={<Catalog />} />
+          <Route path="/top-rated" element={<Catalog />} />
+          <Route path="/airing" element={<Catalog />} />
+          <Route path="/upcoming" element={<Catalog />} />
+          <Route path="/movies" element={<Catalog />} />
+          <Route path="/az-list" element={<Catalog />} />
+          <Route path="/genre/:genre" element={<Catalog />} />
+          <Route path="/catalog" element={<Catalog />} />
         </Routes>
       </div>
     </Router>
