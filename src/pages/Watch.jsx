@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
 import Footer from '../components/Footer';
-import { fetchAnimeDetails } from '../api';
+import { fetchAnimeDetails, fetchAnimeSeasons } from '../api';
 import { searchStreamAnime, fetchStreamEpisodes, fetchEpisodeStream, getBestStreamUrl } from '../api/streaming';
 import {
   Star,
@@ -14,6 +14,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Film,
   X
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
@@ -22,7 +24,9 @@ const CHUNK_SIZE = 100;
 
 export default function Watch() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [anime, setAnime] = useState(null);
+  const [seasons, setSeasons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEp, setSelectedEp] = useState(1);
   const [streamUrl, setStreamUrl] = useState('');
@@ -205,6 +209,15 @@ export default function Watch() {
 
         const data = await fetchAnimeDetails(id);
         setAnime(data);
+
+        // Fetch franchise seasons for the season changer
+        try {
+          const s = await fetchAnimeSeasons(data);
+          setSeasons(s || []);
+        } catch (seasonErr) {
+          console.warn('Seasons fetch error', seasonErr);
+        }
+
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
         document.title = `Watch ${animeTitle} Online — ExoticHub`;
         document.querySelector('meta[name="description"]')?.setAttribute(
@@ -406,6 +419,65 @@ export default function Watch() {
                 </button>
               </div>
             </div>
+
+            {/* Season Changer (visible when anime has > 1 season) */}
+            {seasons.length > 1 && (
+              <div className="mb-3 bg-[#141414] border border-zinc-800/90 rounded-xl p-2.5">
+                <div className="flex items-center justify-between text-[11px] font-black text-zinc-400 uppercase tracking-wider mb-2">
+                  <div className="flex items-center gap-1.5 text-zinc-200">
+                    <Film className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Seasons</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-bold border border-zinc-700">
+                    {seasons.length} Seasons
+                  </span>
+                </div>
+
+                {/* Season Dropdown */}
+                <div className="relative">
+                  <select
+                    value={anime.id}
+                    onChange={(e) => navigate(`/watch/${e.target.value}`)}
+                    className="w-full bg-[#1b1b1b] hover:bg-zinc-800 text-white font-bold text-xs rounded-lg px-3 py-2 border border-zinc-700/80 focus:outline-none focus:border-white transition cursor-pointer appearance-none pr-8 truncate"
+                  >
+                    {seasons.map((s, idx) => (
+                      <option key={s.id} value={s.id} className="bg-[#141414] text-white">
+                        Season {idx + 1}: {s.title} ({s.year || ''}) {s.episodes ? `• ${s.episodes} EPs` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* Quick 1-tap Season Switcher Pills */}
+                <div className="flex gap-1.5 overflow-x-auto mt-2 pt-1.5 border-t border-zinc-800/60 custom-scroll">
+                  {seasons.map((s, idx) => {
+                    const isCurrent = Number(anime.id) === Number(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          if (!isCurrent) navigate(`/watch/${s.id}`);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition duration-150 flex items-center gap-1 ${
+                          isCurrent
+                            ? 'bg-white text-black font-black shadow'
+                            : 'bg-[#1e1e1e] hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800'
+                        }`}
+                        title={s.title}
+                      >
+                        <span>S{idx + 1}</span>
+                        {s.episodes && (
+                          <span className="text-[10px] opacity-75 font-normal">({s.episodes})</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Quick Filter / Jump Search Bar */}
             <div className="relative mb-3">

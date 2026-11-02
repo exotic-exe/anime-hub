@@ -195,11 +195,145 @@ export async function fetchAnimeDetails(id) {
             }
           }
         }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              type
+              format
+              status
+              title { romaji english }
+              coverImage { medium large extraLarge }
+              episodes
+              seasonYear
+              startDate { year }
+              nextAiringEpisode { episode }
+            }
+          }
+        }
       }
     }
   `;
   const data = await fetchGraphQL(query, { id: safeId });
   return data?.Media || null;
+}
+
+// In-memory cache for franchise seasons
+const seasonCache = new Map();
+
+/**
+ * Discovers and returns all seasons for a franchise in chronological order.
+ * If the anime has only 1 season, returns an array with just that season.
+ */
+export async function fetchAnimeSeasons(anime) {
+  if (!anime?.id) return [];
+  if (seasonCache.has(anime.id)) {
+    return seasonCache.get(anime.id);
+  }
+
+  const current = {
+    id: anime.id,
+    title: anime.title?.english || anime.title?.romaji,
+    format: anime.format,
+    year: anime.seasonYear || anime.startDate?.year,
+    episodes: anime.episodes,
+    coverImage: anime.coverImage?.medium || anime.coverImage?.large,
+  };
+
+  const directEdges = (anime.relations?.edges || []).filter(
+    (e) => e.node?.type === 'ANIME' && ['PREQUEL', 'SEQUEL', 'PARENT'].includes(e.relationType)
+  );
+
+  // If no prequel/sequel relations, return single season
+  if (directEdges.length === 0) {
+    const res = [current];
+    seasonCache.set(anime.id, res);
+    return res;
+  }
+
+  const seasonMap = new Map();
+  seasonMap.set(current.id, current);
+
+  const queue = directEdges.map((e) => e.node.id);
+  const visited = new Set([current.id]);
+
+  const query = `
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        id
+        title { english romaji }
+        format
+        status
+        episodes
+        seasonYear
+        startDate { year }
+        coverImage { medium large }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              type
+              format
+              title { english romaji }
+              seasonYear
+              startDate { year }
+              episodes
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  while (queue.length > 0 && visited.size < 12) {
+    const nextId = queue.shift();
+    if (visited.has(nextId)) continue;
+    visited.add(nextId);
+
+    try {
+      const data = await fetchGraphQL(query, { id: nextId });
+      const m = data?.Media;
+      if (!m) continue;
+
+      if (['TV', 'TV_SHORT', 'ONA', 'OVA', 'MOVIE'].includes(m.format)) {
+        seasonMap.set(m.id, {
+          id: m.id,
+          title: m.title?.english || m.title?.romaji,
+          format: m.format,
+          year: m.seasonYear || m.startDate?.year,
+          episodes: m.episodes,
+          coverImage: m.coverImage?.medium || m.coverImage?.large,
+        });
+      }
+
+      (m.relations?.edges || []).forEach((e) => {
+        if (e.node?.type === 'ANIME' && ['PREQUEL', 'SEQUEL'].includes(e.relationType)) {
+          if (!visited.has(e.node.id) && !queue.includes(e.node.id)) {
+            queue.push(e.node.id);
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to fetch related season:', nextId, err);
+    }
+  }
+
+  // Sort chronologically by year / start date
+  const sorted = Array.from(seasonMap.values()).sort((a, b) => {
+    const yA = a.year || 0;
+    const yB = b.year || 0;
+    if (yA !== yB) return yA - yB;
+    return a.id - b.id;
+  });
+
+  // Store in cache for all members of the franchise
+  sorted.forEach((s) => {
+    seasonCache.set(s.id, sorted);
+  });
+
+  return sorted;
 }
 
 export async function searchAnime(keyword, page = 1, perPage = 24) {
