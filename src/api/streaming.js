@@ -3,7 +3,7 @@
  * Handles anime search, episode list, and stream URL fetching
  */
 
-import { sanitizeInput } from './index';
+import { sanitizeInput } from './index.js';
 
 const getApiBase = () => {
   if (import.meta.env.VITE_STREAM_API_URL) {

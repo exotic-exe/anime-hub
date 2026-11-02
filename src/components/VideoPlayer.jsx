@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { isSafeUrl } from '../utils/sanitize';
-import { AlertCircle, RefreshCw, Server } from 'lucide-react';
+import { AlertCircle, RefreshCw, Server, Zap, CheckCircle2 } from 'lucide-react';
 
 function formatPlaybackTime(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
@@ -23,6 +23,10 @@ export default function VideoPlayer({
   episodeTitle = 'Episode 1',
   onEnded = () => {},
   onFallbackToIframe = null,
+  onReloadStream = null,
+  onNextServer = null,
+  serverLabel = '',
+  autoSwitchNotice = null,
 }) {
   const artRef = useRef(null);
   const instanceRef = useRef(null);
@@ -419,19 +423,51 @@ export default function VideoPlayer({
   return (
     <div className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
       {/* Player Header Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0e0e0e] border-b border-zinc-800 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-200 font-bold tracking-wider border border-zinc-700">
+      <div className="flex flex-wrap items-center justify-between px-3 sm:px-4 py-2.5 bg-[#0e0e0e] border-b border-zinc-800 text-xs gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 text-zinc-200 font-bold tracking-wider border border-zinc-700 flex-shrink-0">
             <img src="/logo.jpg" alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
             EXOTICHUB
           </span>
-          <span className="text-zinc-300 font-semibold truncate max-w-[280px] sm:max-w-[500px]">
+          <span className="text-zinc-300 font-semibold truncate max-w-[180px] sm:max-w-[420px]">
             {animeName} — {episodeTitle}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {serverLabel && (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-300 font-bold text-[11px] border border-zinc-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>{serverLabel}</span>
+            </span>
+          )}
+
+          {onReloadStream && (
+            <button
+              type="button"
+              onClick={onReloadStream}
+              title="Refresh and reconnect current stream"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 font-bold text-[11px] transition active:scale-95 cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Reload</span>
+            </button>
+          )}
+
+          {onNextServer && (
+            <button
+              type="button"
+              onClick={onNextServer}
+              title="Auto-switch to next best server"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-[11px] transition active:scale-95 cursor-pointer"
+            >
+              <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>Auto-Switch</span>
+            </button>
+          )}
+
           {activeSub && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-900 text-zinc-200 font-semibold border border-zinc-700">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-200 font-semibold border border-zinc-700">
               CC: {ccStatus}
             </span>
           )}
@@ -439,16 +475,49 @@ export default function VideoPlayer({
       </div>
 
       {/* Screen Container */}
-      <div className="relative w-full aspect-video bg-black">
+      <div className="relative w-full aspect-video bg-black group">
+        {/* Floating Auto-Switch Notice Toast */}
+        {autoSwitchNotice && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/90 border border-zinc-700 px-4 py-2 rounded-xl text-white text-xs font-bold shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{autoSwitchNotice}</span>
+          </div>
+        )}
+
         {hasIframe ? (
-          <iframe
-            src={activeIframe}
-            title={`${animeName} — ${episodeTitle}`}
-            className="absolute inset-0 w-full h-full border-0"
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="origin"
-          />
+          <>
+            <iframe
+              src={activeIframe}
+              title={`${animeName} — ${episodeTitle}`}
+              className="absolute inset-0 w-full h-full border-0"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="origin"
+            />
+            {/* Quick Over-Video Actions on Hover for Iframe */}
+            <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
+              {onReloadStream && (
+                <button
+                  type="button"
+                  onClick={onReloadStream}
+                  className="px-2.5 py-1 rounded-lg bg-black/85 hover:bg-black text-white text-[11px] font-bold border border-zinc-700 backdrop-blur-md shadow-lg flex items-center gap-1 transition"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Reload Stream</span>
+                </button>
+              )}
+              {onNextServer && (
+                <button
+                  type="button"
+                  onClick={onNextServer}
+                  className="px-2.5 py-1 rounded-lg bg-black/85 hover:bg-black text-amber-300 text-[11px] font-bold border border-zinc-700 backdrop-blur-md shadow-lg flex items-center gap-1 transition"
+                >
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Next Server</span>
+                </button>
+              )}
+            </div>
+          </>
         ) : hasDirectStream ? (
           <>
             <div ref={artRef} className="w-full h-full" />
