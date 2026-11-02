@@ -13,7 +13,7 @@ export default async function streamHandler(c) {
       const data = await streamService.getStreamUrl(cleanId, server);
 
       return {
-        headers: { Referer: 'https://hianime.to/' },
+        headers: { Referer: 'https://hianime.mn/' },
         sources: data.sources,
         iframe: data.iframe,
         server: server || data.sources[0]?.quality || 'Auto'
@@ -143,7 +143,7 @@ export default async function streamHandler(c) {
               if (hiData && hiData.sources && hiData.sources.length > 0) {
                 console.log('HiAnime fallback SUCCESS: found direct sources');
                 return {
-                  headers: { Referer: 'https://hianime.to/' },
+                  headers: { Referer: 'https://hianime.mn/' },
                   sources: hiData.sources,
                   iframe: hiData.iframe,
                   server: `HiAnime (${hiData.sources[0].quality})`
@@ -158,7 +158,7 @@ export default async function streamHandler(c) {
     }
 
     return {
-      headers: { Referer: 'https://anitaku.to/' },
+      headers: { Referer: 'https://anitaku.in/' },
       sources: targetSources || [],
       iframe: (targetSources && targetSources.length > 0) ? null : targetServer.url,
       server: targetServer.name

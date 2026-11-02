@@ -5,7 +5,18 @@
 
 import { sanitizeInput } from './index';
 
-const STREAM_API_URL = import.meta.env.VITE_STREAM_API_URL || 'http://localhost:3030/api/v1';
+const getApiBase = () => {
+  if (import.meta.env.VITE_STREAM_API_URL) {
+    return import.meta.env.VITE_STREAM_API_URL;
+  }
+  // In production on HTTPS (e.g. Vercel), use same-origin relative endpoint to avoid Mixed Content & CORS
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost')) {
+    return '/api/v1';
+  }
+  return 'http://localhost:3030/api/v1';
+};
+
+const STREAM_API_URL = getApiBase();
 
 // Cache for stream data
 const streamCache = new Map();

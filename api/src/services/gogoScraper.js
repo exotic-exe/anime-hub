@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { validationError, NotFoundError } from '../utils/errors.js';
 import { hiAnimeService } from './hiAnimeService.js';
 
-const BASE_URL = 'https://anitaku.to';
+const BASE_URL = 'https://anitaku.in';
 
 export const gogoScraper = {
     search: async (keyword, page = 1) => {

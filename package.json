@@ -8,18 +8,32 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "api": "npm --prefix api start"
+    "api": "node server.js"
+  },
+  "imports": {
+    "#*": "./api/src/*"
   },
   "dependencies": {
     "@consumet/extensions": "^1.8.8",
+    "@hono/node-server": "^1.19.9",
+    "@hono/swagger-ui": "^0.5.3",
+    "@hono/zod-openapi": "^1.2.0",
+    "@scalar/hono-api-reference": "^0.9.30",
+    "@upstash/redis": "^1.35.8",
     "artplayer": "^5.2.1",
+    "axios": "^1.13.4",
+    "cheerio": "^1.1.2",
     "cors": "^2.8.6",
+    "crypto-js": "^4.2.0",
     "express": "^5.3.0",
     "hls.js": "^1.5.17",
+    "hono": "^4.11.1",
+    "hono-rate-limiter": "^0.4.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.5"
+    "react-router-dom": "^7.18.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

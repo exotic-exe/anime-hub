@@ -34,10 +34,24 @@ export default function Watch() {
           `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
 
-        // Streaming provider: find anime, then real episode list
+        // Streaming provider: try english title, then romaji, then prefix
         try {
-          const search = await searchStreamAnime(animeTitle);
-          const match = search?.results?.[0];
+          let match = null;
+          const candidates = [
+            data?.title?.english,
+            data?.title?.romaji,
+            data?.title?.english?.split(/[:–—\-]/)[0]?.trim(),
+            data?.title?.romaji?.split(/[:–—\-]/)[0]?.trim(),
+          ].filter(Boolean);
+
+          for (const cand of [...new Set(candidates)]) {
+            const search = await searchStreamAnime(cand);
+            if (search?.results && search.results.length > 0) {
+              match = search.results[0];
+              break;
+            }
+          }
+
           if (match?.id) {
             const epData = await fetchStreamEpisodes(match.id);
             setStreamEpisodes(epData?.episodes || []);
