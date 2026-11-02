@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import AnimeCard from '../components/AnimeCard';
+import ContinueWatching from '../components/ContinueWatching';
 import Footer from '../components/Footer';
 import { fetchTrending, fetchPopular, fetchTopRated } from '../api';
 import { Flame, Star, Trophy } from 'lucide-react';
@@ -46,6 +47,9 @@ export default function Home() {
       {trending.length > 0 && <Hero anime={trending[0]} />}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-12">
+        {/* Continue Watching / Watch History Shelf */}
+        <ContinueWatching />
+
         {/* Trending Section */}
         <section>
           <div className="flex items-center gap-2 mb-6">

@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Details from './pages/Details';
 import Watch from './pages/Watch';
 import Search from './pages/Search';
+import History from './pages/History';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/details/:id" element={<Details />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/history" element={<History />} />
           <Route path="/most-popular" element={<Home />} />
           <Route path="/az-list" element={<Home />} />
         </Routes>

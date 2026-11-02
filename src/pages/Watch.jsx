@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
 import Footer from '../components/Footer';
 import { fetchAnimeDetails, fetchAnimeSeasons } from '../api';
 import { searchStreamAnime, fetchStreamEpisodes, fetchEpisodeStream, getBestStreamUrl } from '../api/streaming';
+import { getAnimeHistory, saveWatchHistory } from '../utils/history';
 import {
   Star,
   Play,
@@ -16,6 +17,7 @@ import {
   ChevronRight,
   ChevronDown,
   Film,
+  History as HistoryIcon,
   X
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
@@ -25,6 +27,7 @@ const CHUNK_SIZE = 100;
 export default function Watch() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [anime, setAnime] = useState(null);
   const [seasons, setSeasons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,7 @@ export default function Watch() {
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [streamEpisodes, setStreamEpisodes] = useState([]);
+  const [resumedFromHistory, setResumedFromHistory] = useState(false);
 
   // UI state for episode navigation
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,15 +190,40 @@ export default function Watch() {
 
   // Handle episode click
   async function handleEpClick(ep) {
-    setSelectedEp(ep.number);
-    await loadEpisodeStream(ep, ep.number);
+    const num = ep.number;
+    setSelectedEp(num);
+    setSearchParams({ ep: num }, { replace: true });
+    if (anime) {
+      saveWatchHistory({
+        animeId: anime.id,
+        title: anime.title?.english || anime.title?.romaji,
+        episode: num,
+        totalEpisodes,
+        poster: anime.coverImage?.extraLarge || anime.coverImage?.large,
+        banner: anime.bannerImage,
+        format: anime.format,
+      });
+    }
+    await loadEpisodeStream(ep, num);
   }
 
   // Quick jump by episode number
   async function selectEpisodeNumber(epNum) {
     if (epNum < 1 || epNum > totalEpisodes) return;
     setSelectedEp(epNum);
+    setSearchParams({ ep: epNum }, { replace: true });
     const epObj = episodesList.find((e) => e.number === epNum) || { number: epNum };
+    if (anime) {
+      saveWatchHistory({
+        animeId: anime.id,
+        title: anime.title?.english || anime.title?.romaji,
+        episode: epNum,
+        totalEpisodes,
+        poster: anime.coverImage?.extraLarge || anime.coverImage?.large,
+        banner: anime.bannerImage,
+        format: anime.format,
+      });
+    }
     await loadEpisodeStream(epObj, epNum);
   }
 
@@ -226,7 +255,7 @@ export default function Watch() {
         );
 
         // Streaming provider: try english title, then romaji, then clean title prefix
-        let firstEpisode = null;
+        let loadedEpisodes = [];
         try {
           let match = null;
           const candidates = [
@@ -249,17 +278,51 @@ export default function Watch() {
             const eps = epData?.episodes || [];
             if (eps.length > 0) {
               setStreamEpisodes(eps);
-              firstEpisode = eps[0];
+              loadedEpisodes = eps;
             }
           }
         } catch (streamErr) {
           console.warn('Streaming setup fallback to embed player', streamErr);
         }
 
-        // Always automatically start playing Episode 1!
-        const epNum = firstEpisode?.number || 1;
-        setSelectedEp(epNum);
-        await loadEpisodeStream(firstEpisode || { number: 1 }, epNum);
+        // Determine starting episode: URL param ?ep=N > saved Watch History > Episode 1
+        let startEp = 1;
+        const paramEp = parseInt(searchParams.get('ep'), 10);
+        const savedHistory = getAnimeHistory(id);
+
+        if (!isNaN(paramEp) && paramEp > 0) {
+          startEp = paramEp;
+        } else if (savedHistory && savedHistory.episode > 0) {
+          startEp = savedHistory.episode;
+          setResumedFromHistory(true);
+        }
+
+        const explicit = Number(data.episodes);
+        const computedMax = Math.max(
+          explicit || 0,
+          data.nextAiringEpisode?.episode ? data.nextAiringEpisode.episode - 1 : 0,
+          loadedEpisodes.length || 0,
+          data.streamingEpisodes?.length || 0,
+          1
+        );
+        const safeEp = Math.min(Math.max(1, startEp), computedMax);
+
+        setSelectedEp(safeEp);
+        setSearchParams({ ep: safeEp }, { replace: true });
+
+        // Save progress to watch history
+        saveWatchHistory({
+          animeId: data.id,
+          title: animeTitle,
+          episode: safeEp,
+          totalEpisodes: computedMax,
+          poster: data.coverImage?.extraLarge || data.coverImage?.large,
+          banner: data.bannerImage,
+          format: data.format,
+        });
+
+        const targetEp = loadedEpisodes.find((e) => e.number === safeEp) || { number: safeEp };
+        await loadEpisodeStream(targetEp, safeEp);
       } catch (err) {
         console.error('Failed to load anime for watch', err);
       } finally {
@@ -325,6 +388,23 @@ export default function Watch() {
                 </div>
               )}
             </div>
+
+            {/* Resumed from watch history notification */}
+            {resumedFromHistory && (
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold shadow-sm backdrop-blur-sm animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <HistoryIcon className="w-4 h-4 text-zinc-300" />
+                  <span>Resumed where you left off at Episode {selectedEp}</span>
+                </div>
+                <button
+                  onClick={() => setResumedFromHistory(false)}
+                  className="p-1 text-zinc-400 hover:text-white transition rounded-lg hover:bg-white/10"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* Quick Episode Navigation Bar */}
             <div className="flex items-center justify-between p-3 bg-[#0d0d0d] border border-zinc-800 rounded-2xl">

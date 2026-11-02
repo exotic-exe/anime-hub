@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Flame, Star, Trophy, Menu, X } from 'lucide-react';
+import { Search, Flame, Star, Trophy, History, Menu, X } from 'lucide-react';
 import { sanitizeInput } from '../api';
 
 export default function Navbar() {
@@ -65,6 +65,13 @@ export default function Navbar() {
             <Trophy className="w-3.5 h-3.5 text-zinc-300" />
             Top Rated
           </Link>
+          <Link
+            to="/history"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-900 transition"
+          >
+            <History className="w-3.5 h-3.5 text-zinc-300" />
+            History
+          </Link>
         </nav>
 
         {/* Mobile menu button */}
@@ -113,6 +120,14 @@ export default function Navbar() {
             >
               <Trophy className="w-4 h-4 text-zinc-300" />
               Top Rated
+            </Link>
+            <Link
+              to="/history"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-900"
+            >
+              <History className="w-4 h-4 text-zinc-300" />
+              History
             </Link>
           </div>
         </div>
