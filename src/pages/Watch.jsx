@@ -16,13 +16,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Film,
   History as HistoryIcon,
   Server,
+  X,
   Zap,
   RefreshCw,
   CheckCircle2,
-  X
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
