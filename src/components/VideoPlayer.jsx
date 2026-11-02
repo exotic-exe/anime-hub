@@ -3,39 +3,42 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { isSafeUrl } from '../utils/sanitize';
 
-const DEFAULT_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-const DEFAULT_SUBTITLE = '/subtitles/demo.vtt';
-
 export default function VideoPlayer({
   url = '',
   iframe = '',
   streamHeaders = null,
   poster = '',
-  subtitleUrl = DEFAULT_SUBTITLE,
+  subtitleUrl = '',
   autoplay = true,
   autoskip = false,
   animeName = 'Anime Stream',
   episodeTitle = 'Episode 1',
   onEnded = () => {},
 }) {
-  // Iframe fallback only when caller gave an embed and no direct stream url
-  const useIframe = Boolean(iframe) && !url && isSafeUrl(iframe);
   const artRef = useRef(null);
   const instanceRef = useRef(null);
   const hlsRef = useRef(null);
   const [streamInput, setStreamInput] = useState('');
   const [captionInput, setCaptionInput] = useState('');
   const [activeUrl, setActiveUrl] = useState(url);
+  const [activeIframe, setActiveIframe] = useState(iframe);
   const [activeSub, setActiveSub] = useState(subtitleUrl);
-  const [ccStatus, setCcStatus] = useState('ON');
+  const [ccStatus, setCcStatus] = useState('OFF');
+
+  // Sync state when props change
+  useEffect(() => {
+    setActiveUrl(url);
+    setActiveIframe(iframe);
+  }, [url, iframe]);
 
   useEffect(() => {
-    setActiveUrl(url || DEFAULT_STREAM);
-  }, [url]);
+    setActiveSub(subtitleUrl);
+  }, [subtitleUrl]);
+
+  const hasDirectStream = Boolean(activeUrl && isSafeUrl(activeUrl));
+  const hasIframe = Boolean(activeIframe && isSafeUrl(activeIframe));
 
   useEffect(() => {
-    if (!artRef.current) return;
-
     // Teardown any prior instance before creating new one
     if (hlsRef.current) {
       try {
@@ -64,12 +67,13 @@ export default function VideoPlayer({
       artRef.current.innerHTML = '';
     }
 
-    // oni-chan embed: no direct stream, render provider iframe instead of Artplayer
-    if (useIframe) return;
+    // If using iframe embed or no direct stream, do not mount Artplayer
+    if (!hasDirectStream || hasIframe) return;
+    if (!artRef.current) return;
 
     const art = new Artplayer({
       container: artRef.current,
-      url: activeUrl || DEFAULT_STREAM,
+      url: activeUrl,
       poster: poster,
       volume: 0.7,
       isLive: false,
@@ -93,34 +97,38 @@ export default function VideoPlayer({
       playsInline: true,
       autoPlayback: true,
       airplay: true,
-      theme: '#ffffff', // Clean white highlight for pure black theme
+      theme: '#ffffff',
       moreVideoAttr: {
         crossOrigin: 'anonymous',
       },
-      subtitle: {
-        url: activeSub || DEFAULT_SUBTITLE,
-        type: 'vtt',
-        style: {
-          color: '#ffffff',
-          fontSize: '22px',
-          textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 2px #000',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          fontWeight: '700',
-        },
-        encoding: 'utf-8',
-      },
-      controls: [
-        {
-          position: 'right',
-          html: '<span style="font-size:12px; font-weight:bold; background:#27272a; padding:3px 8px; border-radius:4px; color:#ffffff; border:1px solid #3f3f46;">CC</span>',
-          tooltip: 'Toggle Captions (Subtitles)',
-          click: function () {
-            art.subtitle.show = !art.subtitle.show;
-            art.notice.show = art.subtitle.show ? 'Captions: ON' : 'Captions: OFF';
-            setCcStatus(art.subtitle.show ? 'ON' : 'OFF');
-          },
-        },
-      ],
+      subtitle: activeSub
+        ? {
+            url: activeSub,
+            type: 'vtt',
+            style: {
+              color: '#ffffff',
+              fontSize: '22px',
+              textShadow: '0 2px 4px rgba(0,0,0,0.9), 0 0 2px #000',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: '700',
+            },
+            encoding: 'utf-8',
+          }
+        : undefined,
+      controls: activeSub
+        ? [
+            {
+              position: 'right',
+              html: '<span style="font-size:12px; font-weight:bold; background:#27272a; padding:3px 8px; border-radius:4px; color:#ffffff; border:1px solid #3f3f46;">CC</span>',
+              tooltip: 'Toggle Captions (Subtitles)',
+              click: function () {
+                art.subtitle.show = !art.subtitle.show;
+                art.notice.show = art.subtitle.show ? 'Captions: ON' : 'Captions: OFF';
+                setCcStatus(art.subtitle.show ? 'ON' : 'OFF');
+              },
+            },
+          ]
+        : [],
       customType: {
         m3u8: function (video, m3u8Url, artInstance) {
           if (Hls.isSupported()) {
@@ -135,7 +143,6 @@ export default function VideoPlayer({
             const hls = new Hls({
               enableWorker: true,
               lowLatencyMode: true,
-              // forward provider stream headers (e.g. Referer) on segment requests
               xhrSetup: streamHeaders
                 ? (xhr) => {
                     Object.entries(streamHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v));
@@ -160,6 +167,20 @@ export default function VideoPlayer({
     instanceRef.current = art;
 
     art.on('ready', () => {
+      const updateHighlights = () => {
+        if (art.video && art.video.duration > 100) {
+          const introEnd = 85;
+          const outroStart = art.video.duration - 90;
+          art.option.highlight = [
+            { time: introEnd, text: 'Intro Ends' },
+            { time: outroStart, text: 'Outro Starts' },
+          ];
+        }
+      };
+
+      art.on('video:loadedmetadata', updateHighlights);
+      if (art.video && art.video.duration) updateHighlights();
+
       if (autoskip && art.video && art.video.currentTime < 85) {
         art.video.currentTime = 85;
         art.notice.show = 'Intro skipped automatically';
@@ -167,14 +188,13 @@ export default function VideoPlayer({
     });
 
     art.on('video:ended', () => {
-      if (onEnded) onEnded();
+      if (typeof onEnded === 'function') onEnded();
     });
 
-    // Skip Intro layer
     art.layers.add({
       name: 'skip-intro',
-      html: '<button style="background: #ffffff; color: #000000; border: 1px solid #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: 800; cursor: pointer; display: none; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.8);">Skip Intro (85s)</button>',
-      style: { position: 'absolute', bottom: '80px', right: '20px' },
+      html: '<button style="background: rgba(255,255,255,0.9); color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">Skip Intro</button>',
+      style: { position: 'absolute', bottom: '70px', right: '20px' },
       click: function () {
         if (art.video) art.video.currentTime = 90;
         this.style.display = 'none';
@@ -182,14 +202,13 @@ export default function VideoPlayer({
       },
     });
 
-    // Skip Outro layer
     art.layers.add({
       name: 'skip-outro',
-      html: '<button style="background: #ffffff; color: #000000; border: 1px solid #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: 800; cursor: pointer; display: none; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.8);">Skip Outro</button>',
-      style: { position: 'absolute', bottom: '80px', right: '20px' },
+      html: '<button style="background: rgba(255,255,255,0.9); color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">Skip Outro</button>',
+      style: { position: 'absolute', bottom: '70px', right: '20px' },
       click: function () {
-        if (onEnded) onEnded();
-        art.notice.show = 'Skipping to next...';
+        if (typeof onEnded === 'function') onEnded();
+        art.notice.show = 'Skipping to next episode...';
       },
     });
 
@@ -214,31 +233,15 @@ export default function VideoPlayer({
     });
 
     return () => {
-      // 1. Destroy HLS instance and cancel buffer downloading
       if (hlsRef.current) {
         try {
           hlsRef.current.stopLoad();
           hlsRef.current.detachMedia();
           hlsRef.current.destroy();
-        } catch (e) {
-          console.error('Error destroying HLS:', e);
-        }
+        } catch (e) {}
         hlsRef.current = null;
       }
 
-      // 2. Pause and reset any video elements in container
-      if (artRef.current) {
-        try {
-          const videos = artRef.current.querySelectorAll('video');
-          videos.forEach((vid) => {
-            vid.pause();
-            vid.removeAttribute('src');
-            vid.load();
-          });
-        } catch (e) {}
-      }
-
-      // 3. Destroy Artplayer completely
       if (instanceRef.current) {
         try {
           const a = instanceRef.current;
@@ -250,23 +253,21 @@ export default function VideoPlayer({
           if (typeof a.destroy === 'function') {
             a.destroy(true);
           }
-        } catch (e) {
-          console.error('Error destroying Artplayer:', e);
-        }
+        } catch (e) {}
         instanceRef.current = null;
       }
 
-      // 4. Wipe DOM container
       if (artRef.current) {
         artRef.current.innerHTML = '';
       }
     };
-  }, [activeUrl, activeSub, poster, useIframe]);
+  }, [activeUrl, activeSub, poster, hasDirectStream, hasIframe]);
 
   const handleCustomLoad = (e) => {
     e.preventDefault();
     if (streamInput.trim()) {
       if (isSafeUrl(streamInput.trim())) {
+        setActiveIframe('');
         setActiveUrl(streamInput.trim());
       } else {
         alert('Invalid stream URL. Only secure HTTP/HTTPS streams are permitted.');
@@ -297,25 +298,48 @@ export default function VideoPlayer({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-900 text-zinc-200 font-semibold border border-zinc-700">
-            CC: {ccStatus}
-          </span>
+          {activeSub && (
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-900 text-zinc-200 font-semibold border border-zinc-700">
+              CC: {ccStatus}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Screen Container */}
       <div className="relative w-full aspect-video bg-black">
-        {useIframe ? (
+        {hasIframe ? (
           <iframe
-            src={iframe}
+            src={activeIframe}
             title={`${animeName} — ${episodeTitle}`}
             className="absolute inset-0 w-full h-full border-0"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             allowFullScreen
             referrerPolicy="origin"
           />
-        ) : (
+        ) : hasDirectStream ? (
           <div ref={artRef} className="w-full h-full" />
+        ) : (
+          <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden">
+            {poster && (
+              <img
+                src={poster}
+                alt={animeName}
+                className="absolute inset-0 w-full h-full object-cover filter brightness-[0.25] blur-sm scale-105"
+              />
+            )}
+            <div className="relative z-10 text-center space-y-3 px-4">
+              <div className="w-12 h-12 mx-auto rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              </div>
+              <p className="text-sm font-bold text-zinc-200">
+                Loading stream source for {episodeTitle}...
+              </p>
+              <p className="text-xs text-zinc-500">
+                Select any episode from the list to stream
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -325,7 +349,7 @@ export default function VideoPlayer({
           type="text"
           value={streamInput}
           onChange={(e) => setStreamInput(e.target.value)}
-          placeholder="Paste .m3u8 stream or MP4 URL..."
+          placeholder="Paste custom .m3u8 stream or MP4 URL..."
           className="flex-1 min-w-[180px] bg-[#141414] border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
         />
         <input
@@ -339,7 +363,7 @@ export default function VideoPlayer({
           type="submit"
           className="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition duration-200 shadow-md shadow-white/5"
         >
-          Load Stream &amp; CC
+          Load Stream
         </button>
       </form>
     </div>

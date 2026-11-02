@@ -13,18 +13,54 @@ export default function Watch() {
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedEp, setSelectedEp] = useState(1);
-  const [streamUrl, setStreamUrl] = useState(null);
+  const [streamUrl, setStreamUrl] = useState('');
+  const [iframeUrl, setIframeUrl] = useState('');
+  const [streamHeaders, setStreamHeaders] = useState(null);
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [streamEpisodes, setStreamEpisodes] = useState([]);
+
+  // Load stream for an episode
+  async function loadEpisodeStream(ep) {
+    if (!ep?.id) {
+      setStreamError('Stream unavailable for this episode.');
+      return;
+    }
+    setStreamLoading(true);
+    setStreamError(null);
+    try {
+      const stream = await fetchEpisodeStream(ep.id);
+      const directUrl = getBestStreamUrl(stream?.sources);
+      const embedIframe = stream?.iframe;
+
+      setStreamHeaders(stream?.headers || null);
+
+      if (directUrl) {
+        setIframeUrl('');
+        setStreamUrl(directUrl);
+      } else if (embedIframe) {
+        setStreamUrl('');
+        setIframeUrl(embedIframe);
+      } else {
+        setStreamError('No stream source found for this episode.');
+      }
+    } catch (err) {
+      console.error('Episode stream failed', err);
+      setStreamError('Failed to load stream for this episode.');
+    } finally {
+      setStreamLoading(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        setStreamUrl(null);
+        setStreamUrl('');
+        setIframeUrl('');
         setStreamError(null);
         setStreamEpisodes([]);
+
         const data = await fetchAnimeDetails(id);
         setAnime(data);
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
@@ -34,7 +70,7 @@ export default function Watch() {
           `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
 
-        // Streaming provider: try english title, then romaji, then prefix
+        // Streaming provider: try english title, then romaji, then clean title prefix
         try {
           let match = null;
           const candidates = [
@@ -54,7 +90,14 @@ export default function Watch() {
 
           if (match?.id) {
             const epData = await fetchStreamEpisodes(match.id);
-            setStreamEpisodes(epData?.episodes || []);
+            const eps = epData?.episodes || [];
+            setStreamEpisodes(eps);
+
+            // Automatically load and stream Episode 1!
+            if (eps.length > 0) {
+              setSelectedEp(eps[0].number || 1);
+              await loadEpisodeStream(eps[0]);
+            }
           } else {
             setStreamError('Anime not found on streaming provider.');
           }
@@ -116,26 +159,7 @@ export default function Watch() {
 
   async function handleEpClick(ep) {
     setSelectedEp(ep.number);
-    if (!ep.id) {
-      setStreamError('Stream unavailable for this episode.');
-      return;
-    }
-    setStreamLoading(true);
-    setStreamError(null);
-    try {
-      const stream = await fetchEpisodeStream(ep.id);
-      const url = getBestStreamUrl(stream?.sources) || stream?.iframe;
-      if (url) {
-        setStreamUrl(url);
-      } else {
-        setStreamError('No stream source found for this episode.');
-      }
-    } catch (err) {
-      console.error('Episode stream failed', err);
-      setStreamError('Failed to load stream for this episode.');
-    } finally {
-      setStreamLoading(false);
-    }
+    await loadEpisodeStream(ep);
   }
 
   return (
@@ -150,12 +174,15 @@ export default function Watch() {
             <div className="relative">
               <VideoPlayer
                 url={streamUrl}
+                iframe={iframeUrl}
+                streamHeaders={streamHeaders}
                 poster={anime.bannerImage || anime.coverImage?.extraLarge}
                 animeName={title}
                 episodeTitle={`Episode ${selectedEp}`}
                 onEnded={() => {
                   if (selectedEp < episodesCount) {
-                    setSelectedEp(selectedEp + 1);
+                    const nextEp = episodesList.find(e => e.number === selectedEp + 1);
+                    if (nextEp) handleEpClick(nextEp);
                   }
                 }}
               />
