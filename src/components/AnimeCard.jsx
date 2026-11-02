@@ -29,9 +29,9 @@ export default function AnimeCard({ anime }) {
         )}
 
         {/* Format / Episodes Badge */}
-        {anime.episodes && (
+        {(anime.episodes || anime.nextAiringEpisode?.episode) && (
           <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-zinc-800 text-[10px] font-extrabold text-zinc-200 uppercase tracking-wider border border-zinc-700 shadow">
-            {anime.episodes} EP
+            {anime.episodes ? `${anime.episodes} EP` : `EP ${anime.nextAiringEpisode.episode - 1}`}
           </div>
         )}
 

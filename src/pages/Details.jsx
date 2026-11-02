@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
 import { fetchAnimeDetails } from '../api';
-import { Play, Star, Calendar, Clock, Film } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Film, Layers } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
 export default function Details() {
@@ -120,6 +120,12 @@ export default function Details() {
                 <span className="flex items-center gap-1.5 text-zinc-300">
                   <Film className="w-4 h-4 text-zinc-300" />
                   {anime.format}
+                </span>
+              )}
+              {(anime.episodes || anime.nextAiringEpisode?.episode) && (
+                <span className="flex items-center gap-1.5 text-zinc-300">
+                  <Layers className="w-4 h-4 text-zinc-300" />
+                  {anime.episodes || anime.nextAiringEpisode.episode - 1} Episodes
                 </span>
               )}
               {anime.seasonYear && (

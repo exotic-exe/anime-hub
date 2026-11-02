@@ -43,7 +43,9 @@ export default function Hero({ anime }) {
             )}
             {anime.format && <span className="text-zinc-500">• {anime.format}</span>}
             {anime.seasonYear && <span className="text-zinc-500">• {anime.seasonYear}</span>}
-            {anime.episodes && <span className="text-zinc-500">• {anime.episodes} Episodes</span>}
+            {(anime.episodes || anime.nextAiringEpisode?.episode) && (
+              <span className="text-zinc-500">• {anime.episodes || anime.nextAiringEpisode.episode - 1} Episodes</span>
+            )}
           </div>
 
           <div className="flex items-center gap-3 pt-3">
