@@ -21,32 +21,45 @@ export default function Watch() {
   const [streamEpisodes, setStreamEpisodes] = useState([]);
 
   // Load stream for an episode
-  async function loadEpisodeStream(ep) {
-    if (!ep?.id) {
-      setStreamError('Stream unavailable for this episode.');
-      return;
-    }
+  async function loadEpisodeStream(ep, epNumber) {
+    const num = epNumber || ep?.number || selectedEp || 1;
     setStreamLoading(true);
     setStreamError(null);
     try {
-      const stream = await fetchEpisodeStream(ep.id);
-      const directUrl = getBestStreamUrl(stream?.sources);
-      const embedIframe = stream?.iframe;
+      if (ep?.id) {
+        const stream = await fetchEpisodeStream(ep.id);
+        const directUrl = getBestStreamUrl(stream?.sources);
+        const embedIframe = stream?.iframe;
 
-      setStreamHeaders(stream?.headers || null);
+        setStreamHeaders(stream?.headers || null);
 
-      if (directUrl) {
-        setIframeUrl('');
-        setStreamUrl(directUrl);
-      } else if (embedIframe) {
-        setStreamUrl('');
-        setIframeUrl(embedIframe);
-      } else {
-        setStreamError('No stream source found for this episode.');
+        if (directUrl) {
+          setIframeUrl('');
+          setStreamUrl(directUrl);
+          return;
+        } else if (embedIframe) {
+          setStreamUrl('');
+          setIframeUrl(embedIframe);
+          return;
+        }
       }
+
+      // Dedicated anime player fallback for AniList ID
+      if (id) {
+        setStreamUrl('');
+        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?track=sub`);
+        return;
+      }
+
+      setStreamError('No stream source found for this episode.');
     } catch (err) {
-      console.error('Episode stream failed', err);
-      setStreamError('Failed to load stream for this episode.');
+      console.warn('Episode stream scraper failed, using embed player', err);
+      if (id) {
+        setStreamUrl('');
+        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?track=sub`);
+      } else {
+        setStreamError('Failed to load stream for this episode.');
+      }
     } finally {
       setStreamLoading(false);
     }
@@ -71,6 +84,7 @@ export default function Watch() {
         );
 
         // Streaming provider: try english title, then romaji, then clean title prefix
+        let firstEpisode = null;
         try {
           let match = null;
           const candidates = [
@@ -91,20 +105,19 @@ export default function Watch() {
           if (match?.id) {
             const epData = await fetchStreamEpisodes(match.id);
             const eps = epData?.episodes || [];
-            setStreamEpisodes(eps);
-
-            // Automatically load and stream Episode 1!
             if (eps.length > 0) {
-              setSelectedEp(eps[0].number || 1);
-              await loadEpisodeStream(eps[0]);
+              setStreamEpisodes(eps);
+              firstEpisode = eps[0];
             }
-          } else {
-            setStreamError('Anime not found on streaming provider.');
           }
         } catch (streamErr) {
-          console.error('Streaming setup failed', streamErr);
-          setStreamError('Failed to load streaming episodes.');
+          console.warn('Streaming setup fallback to embed player', streamErr);
         }
+
+        // Always automatically start playing Episode 1!
+        const epNum = firstEpisode?.number || 1;
+        setSelectedEp(epNum);
+        await loadEpisodeStream(firstEpisode || { number: 1 }, epNum);
       } catch (err) {
         console.error('Failed to load anime for watch', err);
       } finally {
@@ -159,7 +172,7 @@ export default function Watch() {
 
   async function handleEpClick(ep) {
     setSelectedEp(ep.number);
-    await loadEpisodeStream(ep);
+    await loadEpisodeStream(ep, ep.number);
   }
 
   return (

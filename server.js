@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const apiDir = path.join(__dirname, 'api');
+const apiDir = path.join(__dirname, 'server');
 const port = process.env.PORT || '3030';
 
 console.log(`Starting Anime Hub Scraper API on port ${port} from ./api ...`);
