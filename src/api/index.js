@@ -1,28 +1,60 @@
 const API_URL = 'https://graphql.anilist.co';
 
-// --- Client-Side In-Memory Cache (TTL: 3 minutes) ---
+// --- Client-Side In-Memory & SessionStorage Cache (TTL: 15 minutes) ---
 const queryCache = new Map();
-const CACHE_TTL_MS = 3 * 60 * 1000;
+const inFlightRequests = new Map();
+const CACHE_TTL_MS = 15 * 60 * 1000;
 
-function getCache(key) {
-  const item = queryCache.get(key);
-  if (!item) return null;
-  if (Date.now() > item.expiresAt) {
-    queryCache.delete(key);
-    return null;
+function hashKey(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
   }
-  return item.data;
+  return 'ex_' + Math.abs(hash).toString(36);
 }
 
-function setCache(key, data) {
-  if (queryCache.size > 100) {
+export function getCache(key) {
+  const item = queryCache.get(key);
+  if (item) {
+    if (Date.now() <= item.expiresAt) return item.data;
+    queryCache.delete(key);
+  }
+
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const hKey = hashKey(key);
+      const raw = sessionStorage.getItem(hKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Date.now() <= parsed.expiresAt) {
+          queryCache.set(key, parsed);
+          return parsed.data;
+        }
+        sessionStorage.removeItem(hKey);
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+export function setCache(key, data) {
+  if (queryCache.size > 200) {
     const firstKey = queryCache.keys().next().value;
     queryCache.delete(firstKey);
   }
-  queryCache.set(key, {
+  const item = {
     data,
     expiresAt: Date.now() + CACHE_TTL_MS,
-  });
+  };
+  queryCache.set(key, item);
+
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const hKey = hashKey(key);
+      sessionStorage.setItem(hKey, JSON.stringify(item));
+    } catch (_) {}
+  }
 }
 
 // --- Client-Side Rate Limiter & Sliding Window Throttler ---
@@ -80,40 +112,52 @@ export async function fetchGraphQL(query, variables = {}, retries = 2) {
   const cached = getCache(cacheKey);
   if (cached) return cached;
 
-  await throttleRequest();
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-
-    if (res.status === 429 && retries > 0) {
-      const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10);
-      const backoff = (retryAfter || 2) * 1000 + Math.random() * 500;
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      return fetchGraphQL(query, variables, retries - 1);
-    }
-
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const data = await res.json();
-    if (data.errors && data.errors.length > 0) {
-      throw new Error(data.errors[0].message);
-    }
-
-    setCache(cacheKey, data.data);
-    return data.data;
-  } catch (err) {
-    if (retries > 0 && err.message.includes('429')) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return fetchGraphQL(query, variables, retries - 1);
-    }
-    throw err;
+  // Deduplicate in-flight concurrent requests for the exact same query
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey);
   }
+
+  const reqPromise = (async () => {
+    await throttleRequest();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      if (res.status === 429 && retries > 0) {
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10);
+        const backoff = (retryAfter || 2) * 1000 + Math.random() * 500;
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+        return fetchGraphQL(query, variables, retries - 1);
+      }
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      if (data.errors && data.errors.length > 0) {
+        throw new Error(data.errors[0].message);
+      }
+
+      setCache(cacheKey, data.data);
+      return data.data;
+    } catch (err) {
+      if (retries > 0 && err.message.includes('429')) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return fetchGraphQL(query, variables, retries - 1);
+      }
+      throw err;
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, reqPromise);
+  return reqPromise;
 }
 
 export async function fetchTrending(page = 1, perPage = 20) {
@@ -192,6 +236,57 @@ export async function fetchHomePageData() {
     };
   }
 }
+
+/**
+ * Returns cached home data synchronously if available (0ms instant render)
+ */
+export function getCachedHomePageData() {
+  const query = `
+    query {
+      trending: Page(page: 1, perPage: 18) {
+        media(type: ANIME, sort: TRENDING_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      airing: Page(page: 1, perPage: 12) {
+        media(type: ANIME, status: RELEASING, sort: [POPULARITY_DESC, SCORE_DESC]) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      popular: Page(page: 1, perPage: 12) {
+        media(type: ANIME, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      topRated: Page(page: 1, perPage: 12) {
+        media(type: ANIME, sort: SCORE_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      movies: Page(page: 1, perPage: 12) {
+        media(type: ANIME, format: MOVIE, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+      upcoming: Page(page: 1, perPage: 12) {
+        media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const cached = getCache(JSON.stringify({ query, variables: {} }));
+  if (!cached) return null;
+  return {
+    trending: cached.trending?.media || [],
+    airing: cached.airing?.media || [],
+    popular: cached.popular?.media || [],
+    topRated: cached.topRated?.media || [],
+    movies: cached.movies?.media || [],
+    upcoming: cached.upcoming?.media || [],
+  };
+}
+
 
 
 export async function fetchPopular(page = 1, perPage = 20) {
