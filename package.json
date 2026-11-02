@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server.js",
+    "api": "npm --prefix api start"
   },
   "dependencies": {
     "@consumet/extensions": "^1.8.8",
