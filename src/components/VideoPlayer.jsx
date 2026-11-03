@@ -487,6 +487,7 @@ export default function VideoPlayer({
         {hasIframe ? (
           <>
             <iframe
+              key={activeIframe}
               src={activeIframe}
               title={`${animeName} — ${episodeTitle}`}
               className="absolute inset-0 w-full h-full border-0"

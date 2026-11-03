@@ -48,7 +48,7 @@ const SERVERS = [
     id: 'server-2',
     name: 'Server 2 (HD Mirror)',
     shortName: 'Server 2 (Mirror)',
-    badge: 'Reliable',
+    badge: 'Backup',
     icon: Server,
   },
   {
@@ -58,20 +58,33 @@ const SERVERS = [
     badge: 'Dubbed',
     icon: Film,
   },
+  {
+    id: 'server-4',
+    name: 'Server 4 (Dub Mirror)',
+    shortName: 'Server 4 (Dub 2)',
+    badge: 'Dub Backup',
+    icon: Film,
+  },
 ];
 
-// Helper to generate clean embed URLs without invalid query parameters
-function getEmbedUrlForServer(animeId, epNum, serverId) {
+// Helper to generate clean embed URLs with optional resume timestamp
+function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
   if (!animeId) return '';
   const num = Math.max(1, Number(epNum) || 1);
-  if (serverId === 'server-3') {
-    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub`;
-  }
+  const startSec = Math.floor(Number(startTime) || 0);
+  const startParam = startSec > 3 ? `&start=${startSec}&autoPlay=1` : '&autoPlay=1';
+
   if (serverId === 'server-2') {
-    return `https://www.animeembed.com/embed/ani/${animeId}/${num}`;
+    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub&server=2${startParam}`;
   }
-  // Default / server-1 / auto: Sub
-  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub`;
+  if (serverId === 'server-3') {
+    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub&server=1${startParam}`;
+  }
+  if (serverId === 'server-4') {
+    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub&server=2${startParam}`;
+  }
+  // Default / server-1 / auto: Sub on server 1
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub&server=1${startParam}`;
 }
 
 export default function Watch() {
@@ -95,6 +108,7 @@ export default function Watch() {
   const [currentResolvedServer, setCurrentResolvedServer] = useState('server-1');
   const [autoSwitchNotice, setAutoSwitchNotice] = useState(null);
   const noticeTimerRef = useRef(null);
+  const playbackTimeRef = useRef(0);
 
   function showNotice(msg) {
     setAutoSwitchNotice(msg);
@@ -208,7 +222,7 @@ export default function Watch() {
   }, [episodesList, searchQuery, activeChunk, totalEpisodes]);
 
   // Load stream for an episode instantly without artificial delays
-  function loadEpisodeStream(ep, epNumber, targetServerId = activeServerId) {
+  function loadEpisodeStream(ep, epNumber, targetServerId = activeServerId, startTime = 0) {
     const num = epNumber || ep?.number || selectedEp || 1;
     setStreamError(null);
     setStreamLoading(false);
@@ -218,18 +232,21 @@ export default function Watch() {
       resolvedServer = 'server-2';
     } else if (targetServerId === 'server-3') {
       resolvedServer = 'server-3';
+    } else if (targetServerId === 'server-4') {
+      resolvedServer = 'server-4';
     } else {
       resolvedServer = 'server-1';
     }
 
     setCurrentResolvedServer(resolvedServer);
     setStreamUrl('');
-    setIframeUrl(getEmbedUrlForServer(id, num, resolvedServer));
+    setIframeUrl(getEmbedUrlForServer(id, num, resolvedServer, startTime));
   }
 
   // Handle episode click
   function handleEpClick(ep) {
     const num = ep.number;
+    playbackTimeRef.current = 0;
     setSelectedEp(num);
     setSearchParams({ ep: num }, { replace: true });
     if (anime) {
@@ -243,12 +260,13 @@ export default function Watch() {
         format: anime.format,
       });
     }
-    loadEpisodeStream(ep, num, activeServerId);
+    loadEpisodeStream(ep, num, activeServerId, 0);
   }
 
   // Quick jump by episode number
   function selectEpisodeNumber(epNum) {
     if (epNum < 1 || epNum > totalEpisodes) return;
+    playbackTimeRef.current = 0;
     setSelectedEp(epNum);
     setSearchParams({ ep: epNum }, { replace: true });
     const epObj = episodesList.find((e) => e.number === epNum) || { number: epNum };
@@ -263,42 +281,51 @@ export default function Watch() {
         format: anime.format,
       });
     }
-    loadEpisodeStream(epObj, epNum, activeServerId);
+    loadEpisodeStream(epObj, epNum, activeServerId, 0);
   }
 
   // User manually selects a server
   function handleSelectServer(serverId) {
     setActiveServerId(serverId);
     const target = SERVERS.find((s) => s.id === serverId);
-    showNotice(`Switched to ${target?.name || serverId}`);
+    const resumeTime = playbackTimeRef.current;
+    showNotice(resumeTime > 5 ? `Switched to ${target?.name || serverId} (Resuming at ${Math.floor(resumeTime)}s)` : `Switched to ${target?.name || serverId}`);
     const epObj = episodesList.find((e) => e.number === selectedEp) || { number: selectedEp };
-    loadEpisodeStream(epObj, selectedEp, serverId);
+    loadEpisodeStream(epObj, selectedEp, serverId, resumeTime);
   }
 
-  // Auto-switch to next server in the failover ring
+  // Auto-switch to next server in the failover ring with seamless timestamp preservation
   function handleAutoSwitchNext() {
     let nextServer = 'server-2';
-    if (currentResolvedServer === 'server-2') {
+    if (currentResolvedServer === 'server-1') {
+      nextServer = 'server-2';
+    } else if (currentResolvedServer === 'server-2') {
       nextServer = 'server-3';
     } else if (currentResolvedServer === 'server-3') {
-      nextServer = 'server-1';
+      nextServer = 'server-4';
     } else {
-      nextServer = 'server-2';
+      nextServer = 'server-1';
     }
 
     setCurrentResolvedServer(nextServer);
     const serverObj = SERVERS.find((s) => s.id === nextServer);
-    showNotice(`Auto-switched to ${serverObj?.name || nextServer}`);
+    const resumeTime = playbackTimeRef.current;
+    showNotice(
+      resumeTime > 5
+        ? `Switched to ${serverObj?.name || nextServer} (Resuming at ${Math.floor(resumeTime)}s)`
+        : `Switched to ${serverObj?.name || nextServer}`
+    );
 
     if (id) {
       setStreamUrl('');
-      setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer));
+      setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
     }
   }
 
-  // Refresh and reload current stream without corrupting query params
+  // Refresh and reload current stream preserving timestamp
   function handleReloadCurrentStream() {
-    showNotice('Reloading stream...');
+    const resumeTime = playbackTimeRef.current;
+    showNotice(resumeTime > 5 ? `Reloading & resuming at ${Math.floor(resumeTime)}s...` : 'Reloading stream connection...');
     if (streamUrl && !iframeUrl) {
       const current = streamUrl;
       setStreamUrl('');
@@ -306,16 +333,15 @@ export default function Watch() {
         setStreamUrl(current);
         showNotice('Stream reloaded');
       }, 60);
-    } else if (iframeUrl) {
-      const current = iframeUrl;
+    } else if (id) {
       setIframeUrl('');
       setTimeout(() => {
-        setIframeUrl(current);
-        showNotice('Stream connection reloaded');
+        setIframeUrl(getEmbedUrlForServer(id, selectedEp, currentResolvedServer, resumeTime));
+        showNotice('Stream reconnected');
       }, 60);
     } else {
       const epObj = episodesList.find((e) => e.number === selectedEp) || { number: selectedEp };
-      loadEpisodeStream(epObj, selectedEp, activeServerId);
+      loadEpisodeStream(epObj, selectedEp, activeServerId, resumeTime);
     }
   }
 
@@ -326,11 +352,46 @@ export default function Watch() {
       if (currentResolvedServer === 'server-1') return 'Auto: Server 1 (Sub)';
       if (currentResolvedServer === 'server-2') return 'Auto: Server 2 (Mirror)';
       if (currentResolvedServer === 'server-3') return 'Auto: Server 3 (Dub)';
+      if (currentResolvedServer === 'server-4') return 'Auto: Server 4 (Dub 2)';
       return 'Auto: Best Server';
     }
     const match = SERVERS.find((s) => s.id === activeServerId);
     return match?.shortName || activeServerId;
   }, [activeServerId, currentResolvedServer]);
+
+  // Listen to postMessage events from AnimeEmbed for seamless auto-failover & progress tracking
+  useEffect(() => {
+    function handleMessage(event) {
+      if (event.origin !== 'https://www.animeembed.com') return;
+      const data = event.data;
+      if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
+
+      if (data.event === 'progress' && typeof data.data?.currentTime === 'number') {
+        playbackTimeRef.current = data.data.currentTime;
+      }
+
+      if (data.event === 'error') {
+        console.warn('Playback error detected from embed player, auto-recovering...');
+        showNotice('Playback issue detected — auto-switching mirror...');
+        const resumeTime = playbackTimeRef.current;
+        let nextServer = currentResolvedServer === 'server-1' ? 'server-2' : currentResolvedServer === 'server-2' ? 'server-3' : 'server-1';
+        setCurrentResolvedServer(nextServer);
+        if (id) {
+          setStreamUrl('');
+          setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
+        }
+      }
+
+      if (data.event === 'ended') {
+        if (selectedEp < totalEpisodes) {
+          selectEpisodeNumber(selectedEp + 1);
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [selectedEp, totalEpisodes, currentResolvedServer, id]);
 
   useEffect(() => {
     let cancelled = false;
