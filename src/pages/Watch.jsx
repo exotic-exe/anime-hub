@@ -294,22 +294,30 @@ export default function Watch() {
     loadEpisodeStream(epObj, selectedEp, serverId, resumeTime);
   }
 
-  // Auto-switch to next server in the failover ring with seamless timestamp preservation
+  const retryCountRef = useRef(0);
+  const lastErrorTimeRef = useRef(0);
+
+  // Auto-switch to next mirror in the same language track
   function handleAutoSwitchNext() {
-    let nextServer = 'server-2';
-    if (currentResolvedServer === 'server-1') {
-      nextServer = 'server-2';
-    } else if (currentResolvedServer === 'server-2') {
-      nextServer = 'server-3';
-    } else if (currentResolvedServer === 'server-3') {
-      nextServer = 'server-4';
-    } else {
-      nextServer = 'server-1';
+    const resumeTime = playbackTimeRef.current;
+    
+    // Dub mode: toggle between Server 3 and Server 4
+    if (activeServerId === 'server-3' || activeServerId === 'server-4' || currentResolvedServer === 'server-3' || currentResolvedServer === 'server-4') {
+      const nextServer = currentResolvedServer === 'server-3' ? 'server-4' : 'server-3';
+      setCurrentResolvedServer(nextServer);
+      const serverObj = SERVERS.find((s) => s.id === nextServer);
+      showNotice(resumeTime > 5 ? `Switched to ${serverObj?.name || nextServer} (Resuming at ${Math.floor(resumeTime)}s)` : `Switched to ${serverObj?.name || nextServer}`);
+      if (id) {
+        setStreamUrl('');
+        setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
+      }
+      return;
     }
 
+    // Default / Sub mode: toggle between Server 1 and Server 2 (Never force Dub)
+    const nextServer = currentResolvedServer === 'server-1' ? 'server-2' : 'server-1';
     setCurrentResolvedServer(nextServer);
     const serverObj = SERVERS.find((s) => s.id === nextServer);
-    const resumeTime = playbackTimeRef.current;
     showNotice(
       resumeTime > 5
         ? `Switched to ${serverObj?.name || nextServer} (Resuming at ${Math.floor(resumeTime)}s)`
@@ -368,17 +376,58 @@ export default function Watch() {
 
       if (data.event === 'progress' && typeof data.data?.currentTime === 'number') {
         playbackTimeRef.current = data.data.currentTime;
+        retryCountRef.current = 0; // Clear retry count on smooth playback
       }
 
       if (data.event === 'error') {
-        console.warn('Playback error detected from embed player, auto-recovering...');
-        showNotice('Playback issue detected — auto-switching mirror...');
+        const now = Date.now();
+        // Debounce error handling by at least 4 seconds to prevent thrashing
+        if (now - lastErrorTimeRef.current < 4000) return;
+        lastErrorTimeRef.current = now;
+
         const resumeTime = playbackTimeRef.current;
-        let nextServer = currentResolvedServer === 'server-1' ? 'server-2' : currentResolvedServer === 'server-2' ? 'server-3' : 'server-1';
-        setCurrentResolvedServer(nextServer);
-        if (id) {
-          setStreamUrl('');
-          setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
+        console.warn('Playback error detected from embed player:', data);
+
+        // If we are currently on Dub and it errors (e.g. no English dub exists), recover to Sub HD
+        if (currentResolvedServer === 'server-3' || currentResolvedServer === 'server-4') {
+          showNotice('Dub not available for this anime — switching to Sub HD...');
+          setCurrentResolvedServer('server-1');
+          setActiveServerId('server-1');
+          if (id) {
+            setStreamUrl('');
+            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
+          }
+          return;
+        }
+
+        // In Sub mode: first attempt clean reconnect of Server 1 at exact timestamp
+        if (retryCountRef.current === 0) {
+          retryCountRef.current++;
+          showNotice(resumeTime > 5 ? `Connection stalled — resuming at ${Math.floor(resumeTime)}s...` : 'Reconnecting stream...');
+          if (id) {
+            setIframeUrl('');
+            setTimeout(() => {
+              setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
+            }, 80);
+          }
+        } else if (retryCountRef.current === 1) {
+          // If second error within short interval, try mirror server 2
+          retryCountRef.current++;
+          showNotice('Trying backup mirror...');
+          setCurrentResolvedServer('server-2');
+          if (id) {
+            setStreamUrl('');
+            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-2', resumeTime));
+          }
+        } else {
+          // Reset to server 1
+          retryCountRef.current = 0;
+          setCurrentResolvedServer('server-1');
+          showNotice('Restoring Server 1 HD connection...');
+          if (id) {
+            setStreamUrl('');
+            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
+          }
         }
       }
 
@@ -391,7 +440,7 @@ export default function Watch() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedEp, totalEpisodes, currentResolvedServer, id]);
+  }, [selectedEp, totalEpisodes, currentResolvedServer, id, activeServerId]);
 
   useEffect(() => {
     let cancelled = false;
