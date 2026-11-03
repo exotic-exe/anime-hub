@@ -11,6 +11,16 @@
   }
 }
 
+/* Fullscreen player styling */
+:fullscreen,
+:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  background-color: #000000 !important;
+}
+
 .custom-scroll::-webkit-scrollbar {
   width: 5px;
   height: 5px;

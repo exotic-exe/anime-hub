@@ -1,9 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { isSafeUrl } from '../utils/sanitize';
 import { recordPlayerInteraction, markInternalNavigation } from '../utils/antiRedirect';
-import { AlertCircle, RefreshCw, Server, Zap, CheckCircle2, Play, Maximize2, Minimize2, ShieldCheck } from 'lucide-react';
+import {
+  AlertCircle,
+  RefreshCw,
+  Server,
+  Zap,
+  CheckCircle2,
+  Play,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  Minimize2,
+  ShieldCheck,
+} from 'lucide-react';
 
 function formatPlaybackTime(seconds) {
   if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
@@ -36,6 +51,7 @@ export default function VideoPlayer({
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
 
+  // User input states (custom stream/caption bar)
   const [streamInput, setStreamInput] = useState('');
   const [captionInput, setCaptionInput] = useState('');
   const [activeUrl, setActiveUrl] = useState(url);
@@ -44,8 +60,24 @@ export default function VideoPlayer({
   const [ccStatus, setCcStatus] = useState('OFF');
   const [playbackError, setPlaybackError] = useState(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
-  const [iframeStarted, setIframeStarted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Native Control Layer States for Ad-Shielded Iframe
+  const [iframeStarted, setIframeStarted] = useState(false);
+  const [iframePlaying, setIframePlaying] = useState(Boolean(autoplay));
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const [centerFeedback, setCenterFeedback] = useState(null);
+
+  // Interaction refs
+  const isDraggingSeekRef = useRef(false);
+  const activityTimerRef = useRef(null);
+  const feedbackTimerRef = useRef(null);
+  const lastClickTimeRef = useRef(0);
+  const clickTimeoutRef = useRef(null);
 
   // Sync state when props change
   useEffect(() => {
@@ -53,27 +85,88 @@ export default function VideoPlayer({
     setActiveIframe(iframe);
     setPlaybackError(null);
     setIframeStarted(false);
-  }, [url, iframe]);
+    setIframePlaying(Boolean(autoplay));
+    setCurrentTime(0);
+    setDuration(0);
+    currentTimeRef.current = 0;
+  }, [url, iframe, autoplay]);
 
   useEffect(() => {
     setActiveSub(subtitleUrl);
   }, [subtitleUrl]);
 
+  // Send structured postMessage commands to AnimeEmbed iframe
+  const sendIframeCommand = useCallback((command, data = {}) => {
+    const iframeEl = iframeRef.current;
+    if (!iframeEl || !iframeEl.contentWindow) return;
+    const message = {
+      channel: 'animeembed',
+      version: 1,
+      requestId: 'cmd-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      command,
+      data,
+    };
+    try {
+      iframeEl.contentWindow.postMessage(message, '*');
+    } catch (_) {}
+  }, []);
+
+  // Show transient center feedback badge (Play, Pause, +10s, -10s, Volume, etc.)
+  const showFeedback = useCallback((icon, text = '') => {
+    setCenterFeedback({ icon, text });
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      setCenterFeedback(null);
+    }, 650);
+  }, []);
+
   // Track iframe playback state via postMessage from AnimeEmbed
-  // Accepts messages from our own origin (/api/embed proxy) OR direct animeembed.com
   useEffect(() => {
     const ALLOWED = new Set([window.location.origin, 'https://www.animeembed.com']);
     function handleIframeMessage(e) {
       if (!ALLOWED.has(e.origin)) return;
       const data = e.data;
-      if (!data || data.channel !== 'animeembed') return;
-      if (data.event === 'play' || data.event === 'progress' || data.event === 'ready') {
+      if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
+
+      if (data.event === 'play') {
         setIframeStarted(true);
+        setIframePlaying(true);
+      } else if (data.event === 'pause') {
+        setIframePlaying(false);
+      } else if (data.event === 'ended') {
+        setIframePlaying(false);
+        if (typeof onEnded === 'function') onEnded();
+      } else if (data.event === 'progress') {
+        setIframeStarted(true);
+        if (typeof data.data?.currentTime === 'number') {
+          if (!isDraggingSeekRef.current) {
+            setCurrentTime(data.data.currentTime);
+            currentTimeRef.current = data.data.currentTime;
+          }
+        }
+        if (typeof data.data?.duration === 'number' && data.data.duration > 0) {
+          setDuration(data.data.duration);
+        }
       }
     }
     window.addEventListener('message', handleIframeMessage);
     return () => window.removeEventListener('message', handleIframeMessage);
-  }, []);
+  }, [onEnded]);
+
+  // Smooth continuous progress increment while playing (resynced on every progress event)
+  useEffect(() => {
+    if (!iframePlaying || !activeIframe) return;
+    const interval = setInterval(() => {
+      if (!isDraggingSeekRef.current) {
+        setCurrentTime((prev) => {
+          const next = prev + 0.25;
+          currentTimeRef.current = next;
+          return next;
+        });
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, [iframePlaying, activeIframe]);
 
   // Track browser fullscreen changes
   useEffect(() => {
@@ -95,33 +188,196 @@ export default function VideoPlayer({
     }
   }
 
+  // Toggle play/pause
+  const togglePlayPause = useCallback(() => {
+    recordPlayerInteraction();
+    markInternalNavigation();
+    setIframeStarted(true);
+    if (iframePlaying) {
+      setIframePlaying(false);
+      sendIframeCommand('pause');
+      showFeedback('pause', 'Paused');
+    } else {
+      setIframePlaying(true);
+      sendIframeCommand('play');
+      showFeedback('play', 'Playing');
+    }
+  }, [iframePlaying, sendIframeCommand, showFeedback]);
+
+  // Relative seek (-10s / +10s)
+  const handleSeekRelative = useCallback(
+    (delta) => {
+      recordPlayerInteraction();
+      markInternalNavigation();
+      const current = currentTimeRef.current || currentTime || 0;
+      const target = Math.max(0, Math.min(duration || 999999, current + delta));
+      currentTimeRef.current = target;
+      setCurrentTime(target);
+      sendIframeCommand('seek', { time: target });
+      showFeedback(delta > 0 ? 'forward' : 'backward', `${delta > 0 ? '+' : ''}${delta}s`);
+    },
+    [currentTime, duration, sendIframeCommand, showFeedback]
+  );
+
+  // Absolute seek (scrubber)
+  const handleSeekTo = useCallback(
+    (targetTime) => {
+      recordPlayerInteraction();
+      markInternalNavigation();
+      const clamped = Math.max(0, Math.min(duration || 999999, targetTime));
+      currentTimeRef.current = clamped;
+      setCurrentTime(clamped);
+      sendIframeCommand('seek', { time: clamped });
+    },
+    [duration, sendIframeCommand]
+  );
+
+  // Toggle mute
+  const toggleMute = useCallback(() => {
+    recordPlayerInteraction();
+    markInternalNavigation();
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    sendIframeCommand('setMuted', { muted: nextMuted });
+    showFeedback(nextMuted ? 'mute' : 'volume', nextMuted ? 'Muted' : `${Math.round(volume * 100)}%`);
+  }, [isMuted, volume, sendIframeCommand, showFeedback]);
+
+  // Volume slider change
+  const handleVolumeChange = useCallback(
+    (newVol) => {
+      recordPlayerInteraction();
+      markInternalNavigation();
+      const clamped = Math.max(0, Math.min(1, newVol));
+      setVolume(clamped);
+      if (clamped > 0 && isMuted) {
+        setIsMuted(false);
+        sendIframeCommand('setMuted', { muted: false });
+      }
+      sendIframeCommand('setVolume', { volume: clamped });
+      showFeedback('volume', `${Math.round(clamped * 100)}%`);
+    },
+    [isMuted, sendIframeCommand, showFeedback]
+  );
+
+  // Skip intro helper
+  const handleSkipIntro = useCallback(() => {
+    handleSeekTo(85);
+    showFeedback('forward', 'Intro Skipped');
+  }, [handleSeekTo, showFeedback]);
+
+  // Single & Double click detection over video surface
+  function handleScreenClick(e) {
+    if (e.target.closest('[data-controls]')) return;
+    recordPlayerInteraction();
+    markInternalNavigation();
+
+    const now = Date.now();
+    const rect = containerRef.current?.getBoundingClientRect();
+    const clickX = rect ? (e.clientX - rect.left) / rect.width : 0.5;
+
+    if (now - lastClickTimeRef.current < 260) {
+      // Double click detected! Cancel single click
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      lastClickTimeRef.current = 0;
+
+      if (clickX < 0.35) {
+        handleSeekRelative(-10);
+      } else if (clickX > 0.65) {
+        handleSeekRelative(10);
+      } else {
+        handleToggleFullscreen();
+      }
+    } else {
+      // Single click candidate
+      lastClickTimeRef.current = now;
+      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = setTimeout(() => {
+        togglePlayPause();
+        clickTimeoutRef.current = null;
+      }, 260);
+    }
+  }
+
+  // Auto-hide controls bar after user inactivity
+  const handleUserActivity = useCallback(() => {
+    setIsControlsVisible(true);
+    if (activityTimerRef.current) clearTimeout(activityTimerRef.current);
+    if (iframePlaying) {
+      activityTimerRef.current = setTimeout(() => {
+        setIsControlsVisible(false);
+      }, 3200);
+    }
+  }, [iframePlaying]);
+
+  // Keyboard shortcut listener
+  useEffect(() => {
+    if (!activeIframe) return;
+
+    function handleKeyDown(e) {
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) {
+        return;
+      }
+
+      if (e.code === 'Space' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (e.code === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        handleSeekRelative(-10);
+      } else if (e.code === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        handleSeekRelative(10);
+      } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleVolumeChange(Math.min(1, volume + 0.1));
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        handleVolumeChange(Math.max(0, volume - 0.1));
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleMute();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    activeIframe,
+    volume,
+    isMuted,
+    iframePlaying,
+    togglePlayPause,
+    handleSeekRelative,
+    handleVolumeChange,
+    toggleMute,
+  ]);
+
+  // Initial Ad-Free Play Button
   function handleAdFreePlay() {
     recordPlayerInteraction();
     markInternalNavigation();
     setIframeStarted(true);
-    if (iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        {
-          channel: 'animeembed',
-          version: 1,
-          requestId: 'play-' + Date.now(),
-          command: 'play',
-        },
-        '*'
-      );
-    }
+    setIframePlaying(true);
+    sendIframeCommand('play');
   }
 
   const hasDirectStream = Boolean(activeUrl && isSafeUrl(activeUrl));
   const hasIframe = Boolean(activeIframe && isSafeUrl(activeIframe));
 
-  // Reconnect and resume playback at exact interrupted timestamp
+  // Reconnect and resume playback at exact interrupted timestamp (for Artplayer)
   function handleReconnect(targetTime) {
-    const resumeTime = typeof targetTime === 'number' ? targetTime : (playbackError?.time || currentTimeRef.current || 0);
+    const resumeTime =
+      typeof targetTime === 'number' ? targetTime : playbackError?.time || currentTimeRef.current || 0;
     setIsReconnecting(true);
     setPlaybackError(null);
 
-    // Destroy existing HLS instance
     if (hlsRef.current) {
       try {
         hlsRef.current.stopLoad();
@@ -134,21 +390,23 @@ export default function VideoPlayer({
     const art = instanceRef.current;
     if (art && art.video && activeUrl) {
       try {
-        art.switchUrl(activeUrl).then(() => {
-          if (art.video && resumeTime > 0) {
-            art.video.currentTime = resumeTime;
-          }
-          art.play().catch(() => {});
-          setIsReconnecting(false);
-        }).catch((err) => {
-          console.warn('SwitchUrl failed, reloading source:', err);
-          // Hard reload fallback
-          setActiveUrl('');
-          setTimeout(() => {
-            setActiveUrl(url);
+        art
+          .switchUrl(activeUrl)
+          .then(() => {
+            if (art.video && resumeTime > 0) {
+              art.video.currentTime = resumeTime;
+            }
+            art.play().catch(() => {});
             setIsReconnecting(false);
-          }, 100);
-        });
+          })
+          .catch((err) => {
+            console.warn('SwitchUrl failed, reloading source:', err);
+            setActiveUrl('');
+            setTimeout(() => {
+              setActiveUrl(url);
+              setIsReconnecting(false);
+            }, 100);
+          });
       } catch (err) {
         setIsReconnecting(false);
       }
@@ -157,8 +415,8 @@ export default function VideoPlayer({
     }
   }
 
+  // Artplayer instance initialization (when playing direct .m3u8/.mp4 stream)
   useEffect(() => {
-    // Teardown prior instance before creating new one
     if (hlsRef.current) {
       try {
         hlsRef.current.stopLoad();
@@ -262,10 +520,9 @@ export default function VideoPlayer({
               hlsRef.current = null;
             }
 
-            // High-reliability VOD HLS buffer configuration
             const hls = new Hls({
               enableWorker: true,
-              lowLatencyMode: false, // Must be FALSE for VOD anime episodes to avoid segment starvation
+              lowLatencyMode: false,
               backBufferLength: 60,
               maxBufferLength: 60,
               maxMaxBufferLength: 120,
@@ -284,7 +541,6 @@ export default function VideoPlayer({
                 : undefined,
             });
 
-            // Automatic Error Recovery for Network Glitches and Buffer Stalls
             hls.on(Hls.Events.ERROR, function (event, data) {
               console.warn('[HLS Error Event]', data.type, data.details, 'Fatal:', data.fatal);
 
@@ -374,7 +630,6 @@ export default function VideoPlayer({
       if (typeof onEnded === 'function') onEnded();
     });
 
-    // Native Video Error Interception
     art.on('video:error', () => {
       const time = art.video?.currentTime || currentTimeRef.current || 0;
       console.warn('[Video Error] Interrupted at', time);
@@ -409,7 +664,7 @@ export default function VideoPlayer({
       if (!art.video) return;
       const current = art.video.currentTime;
       currentTimeRef.current = current;
-      const duration = art.video.duration;
+      const dur = art.video.duration;
       const skipIntroBtn = art.layers['skip-intro'];
       const skipOutroBtn = art.layers['skip-outro'];
 
@@ -419,7 +674,7 @@ export default function VideoPlayer({
         if (skipIntroBtn) skipIntroBtn.style.display = 'none';
       }
 
-      if (duration > 100 && current > duration - 90 && current < duration - 10) {
+      if (dur > 100 && current > dur - 90 && current < dur - 10) {
         if (skipOutroBtn) skipOutroBtn.style.display = 'block';
       } else {
         if (skipOutroBtn) skipOutroBtn.style.display = 'none';
@@ -546,7 +801,7 @@ export default function VideoPlayer({
       <div
         ref={containerRef}
         onPointerDown={recordPlayerInteraction}
-        className="relative w-full aspect-video bg-black group overflow-hidden"
+        className="relative w-full aspect-video bg-black group overflow-hidden select-none"
       >
         {/* Floating Auto-Switch Notice Toast */}
         {autoSwitchNotice && (
@@ -557,19 +812,53 @@ export default function VideoPlayer({
 
         {hasIframe ? (
           <>
+            {/*
+              IMPERMEABLE AD SHIELD:
+              The iframe has pointer-events-none so no clicks, taps, or mouse movements
+              can ever hit third-party ad scripts (e.g., abscloud).
+              Without user activation in the iframe, the browser completely forbids
+              popups and top-navigation redirects.
+            */}
             <iframe
               ref={iframeRef}
               key={activeIframe}
               src={activeIframe}
               title={`${animeName} — ${episodeTitle}`}
-              className="absolute inset-0 w-full h-full border-0"
+              className="absolute inset-0 w-full h-full border-0 pointer-events-none select-none"
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
               referrerPolicy="origin"
               credentialless="true"
             />
 
-            {/* Ad-Free Direct Play Overlay before video begins */}
+            {/* Interactive Video Click Surface (Handles play/pause, seeks, fullscreen) */}
+            <div
+              className="absolute inset-0 z-10 pointer-events-auto cursor-pointer"
+              onClick={handleScreenClick}
+              onMouseMove={handleUserActivity}
+              onTouchStart={handleUserActivity}
+            >
+              {/* Transient Center Feedback Badge */}
+              {centerFeedback && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                  <div className="flex flex-col items-center justify-center px-5 py-4 rounded-2xl bg-black/85 backdrop-blur-md text-white border border-white/20 shadow-2xl animate-out fade-out zoom-out-95 duration-500">
+                    {centerFeedback.icon === 'play' && <Play className="w-10 h-10 fill-white" />}
+                    {centerFeedback.icon === 'pause' && <Pause className="w-10 h-10 fill-white" />}
+                    {centerFeedback.icon === 'forward' && <RotateCw className="w-10 h-10" />}
+                    {centerFeedback.icon === 'backward' && <RotateCcw className="w-10 h-10" />}
+                    {centerFeedback.icon === 'volume' && <Volume2 className="w-10 h-10" />}
+                    {centerFeedback.icon === 'mute' && <VolumeX className="w-10 h-10" />}
+                    {centerFeedback.text && (
+                      <span className="mt-2 text-xs font-black tracking-wider uppercase">
+                        {centerFeedback.text}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ad-Free Direct Play Overlay before playback starts */}
             {!iframeStarted && (
               <div
                 className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center p-6 text-center select-none animate-in fade-in cursor-pointer"
@@ -591,9 +880,7 @@ export default function VideoPlayer({
                     <p className="text-sm sm:text-base font-black text-white tracking-wide">
                       {animeName}
                     </p>
-                    <p className="text-xs text-zinc-300 font-semibold">
-                      {episodeTitle}
-                    </p>
+                    <p className="text-xs text-zinc-300 font-semibold">{episodeTitle}</p>
                   </div>
 
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
@@ -604,7 +891,7 @@ export default function VideoPlayer({
               </div>
             )}
 
-            {/* Quick Over-Video Actions on Hover for Iframe */}
+            {/* Top-Right Quick Over-Video Actions on Hover */}
             <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
               {onReloadStream && (
                 <button
@@ -634,6 +921,174 @@ export default function VideoPlayer({
                 {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               </button>
             </div>
+
+            {/*
+              NATIVE EXOTICHUB CONTROLS BAR:
+              Rendered on ExoticHub's DOM layer so third-party ad scripts are 100% neutralized.
+              Offers Play/Pause, -10s/+10s, smooth scrubber, volume, skip intro, and fullscreen.
+            */}
+            <div
+              data-controls="true"
+              className={`absolute bottom-0 inset-x-0 z-20 pointer-events-auto bg-gradient-to-t from-black/95 via-black/75 to-transparent px-3 sm:px-4 py-2 sm:py-3 pt-6 sm:pt-8 transition-all duration-300 ${
+                isControlsVisible || !iframePlaying
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-2 pointer-events-none'
+              }`}
+              onMouseEnter={() => setIsControlsVisible(true)}
+              onMouseMove={handleUserActivity}
+            >
+              {/* Progress Scrubber Bar */}
+              <div className="relative group/seek w-full h-4 flex items-center cursor-pointer mb-2">
+                <div className="w-full h-1 group-hover/seek:h-1.5 bg-white/25 rounded-full overflow-hidden transition-all duration-150 relative">
+                  <div
+                    className="h-full bg-white transition-[width] duration-100 rounded-full"
+                    style={{
+                      width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step="any"
+                  value={currentTime}
+                  onMouseDown={() => {
+                    isDraggingSeekRef.current = true;
+                  }}
+                  onTouchStart={() => {
+                    isDraggingSeekRef.current = true;
+                  }}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setCurrentTime(val);
+                    currentTimeRef.current = val;
+                  }}
+                  onMouseUp={(e) => {
+                    isDraggingSeekRef.current = false;
+                    handleSeekTo(parseFloat(e.target.value));
+                  }}
+                  onTouchEnd={(e) => {
+                    isDraggingSeekRef.current = false;
+                    handleSeekTo(parseFloat(e.target.value));
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  aria-label="Seek video"
+                />
+              </div>
+
+              {/* Control Buttons Row */}
+              <div className="flex items-center justify-between gap-2 text-white">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {/* Play / Pause Toggle */}
+                  <button
+                    type="button"
+                    onClick={togglePlayPause}
+                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 transition active:scale-95 cursor-pointer"
+                    title={iframePlaying ? 'Pause (Space / K)' : 'Play (Space / K)'}
+                  >
+                    {iframePlaying ? (
+                      <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                    ) : (
+                      <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current translate-x-0.5" />
+                    )}
+                  </button>
+
+                  {/* Seek -10s */}
+                  <button
+                    type="button"
+                    onClick={() => handleSeekRelative(-10)}
+                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 transition active:scale-95 cursor-pointer"
+                    title="Back 10s (← / J)"
+                  >
+                    <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+
+                  {/* Seek +10s */}
+                  <button
+                    type="button"
+                    onClick={() => handleSeekRelative(10)}
+                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 transition active:scale-95 cursor-pointer"
+                    title="Forward 10s (→ / L)"
+                  >
+                    <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+
+                  {/* Volume Control Group */}
+                  <div className="flex items-center gap-1 group/vol ml-1">
+                    <button
+                      type="button"
+                      onClick={toggleMute}
+                      className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 transition active:scale-95 cursor-pointer"
+                      title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      )}
+                    </button>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-12 sm:w-16 h-1 bg-white/30 rounded-lg accent-white cursor-pointer"
+                      aria-label="Volume slider"
+                    />
+                  </div>
+
+                  {/* Time Display */}
+                  <span className="text-[11px] sm:text-xs font-semibold text-zinc-300 select-none tabular-nums ml-1">
+                    {formatPlaybackTime(currentTime)}
+                    <span className="text-zinc-500 mx-1">/</span>
+                    {formatPlaybackTime(duration)}
+                  </span>
+                </div>
+
+                {/* Right Action Buttons */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Skip Intro Button (Appears during intro interval) */}
+                  {currentTime >= 5 && currentTime <= 85 && (
+                    <button
+                      type="button"
+                      onClick={handleSkipIntro}
+                      className="px-2 sm:px-2.5 py-1 rounded-lg bg-white text-black font-extrabold text-[10px] sm:text-[11px] shadow-lg hover:bg-zinc-200 transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      <span>Skip Intro</span>
+                    </button>
+                  )}
+
+                  {/* Auto-Switch Server Quick Pill */}
+                  {onNextServer && (
+                    <button
+                      type="button"
+                      onClick={onNextServer}
+                      className="hidden sm:inline-flex px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] border border-white/20 transition active:scale-95 cursor-pointer"
+                    >
+                      Next Server
+                    </button>
+                  )}
+
+                  {/* Fullscreen Toggle */}
+                  <button
+                    type="button"
+                    onClick={handleToggleFullscreen}
+                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 transition active:scale-95 cursor-pointer"
+                    title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </>
         ) : hasDirectStream ? (
           <>
@@ -645,19 +1100,20 @@ export default function VideoPlayer({
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
                   <AlertCircle className="w-6 h-6" />
                 </div>
-                <h3 className="text-base font-extrabold text-white">
-                  Playback Interrupted
-                </h3>
+                <h3 className="text-base font-extrabold text-white">Playback Interrupted</h3>
                 <p className="text-xs text-zinc-400 mt-1 max-w-sm">
                   {playbackError.message} You were watching at{' '}
-                  <span className="text-white font-bold">{formatPlaybackTime(playbackError.time)}</span>.
+                  <span className="text-white font-bold">
+                    {formatPlaybackTime(playbackError.time)}
+                  </span>
+                  .
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
                   <button
                     type="button"
                     onClick={() => handleReconnect(playbackError.time)}
                     disabled={isReconnecting}
-                    className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
                     <span>Reconnect & Resume at {formatPlaybackTime(playbackError.time)}</span>
@@ -669,7 +1125,7 @@ export default function VideoPlayer({
                         setPlaybackError(null);
                         onFallbackToIframe();
                       }}
-                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition border border-zinc-700 flex items-center gap-1.5 active:scale-95"
+                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition border border-zinc-700 flex items-center gap-1.5 active:scale-95 cursor-pointer"
                     >
                       <Server className="w-3.5 h-3.5" />
                       <span>Switch to Backup Player</span>
@@ -695,16 +1151,17 @@ export default function VideoPlayer({
               <p className="text-sm font-bold text-zinc-200">
                 Loading stream source for {episodeTitle}...
               </p>
-              <p className="text-xs text-zinc-500">
-                Select any episode from the list to stream
-              </p>
+              <p className="text-xs text-zinc-500">Select any episode from the list to stream</p>
             </div>
           </div>
         )}
       </div>
 
       {/* Stream & Caption Input Bar */}
-      <form onSubmit={handleCustomLoad} className="flex flex-wrap items-center gap-2 p-3 bg-[#0e0e0e] border-t border-zinc-800">
+      <form
+        onSubmit={handleCustomLoad}
+        className="flex flex-wrap items-center gap-2 p-3 bg-[#0e0e0e] border-t border-zinc-800"
+      >
         <input
           type="text"
           value={streamInput}
@@ -721,7 +1178,7 @@ export default function VideoPlayer({
         />
         <button
           type="submit"
-          className="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition duration-200 shadow-md shadow-white/5"
+          className="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition duration-200 shadow-md shadow-white/5 cursor-pointer"
         >
           Load Stream
         </button>

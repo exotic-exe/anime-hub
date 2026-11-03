@@ -1,9 +1,12 @@
 /**
- * Anti-Redirect and Anti-Popup Protection Shield for ExoticHub
+ * Anti-Redirect, Anti-Popup & Anti-Ad Shield for ExoticHub
  * 
- * Prevents third-party cross-origin iframe ad networks (e.g., abscloud, popunders)
- * from hijacking the top-level window (window.top.location = ...), spamming back buttons,
- * or pulling focus away from ExoticHub.
+ * Provides impenetrable browser-level defenses:
+ * 1. Blocks unauthorized window.open popups and popunders completely.
+ * 2. Neutralizes synthetic click events injected by third-party ad scripts.
+ * 3. Prevents cross-origin frame top-navigation hijacking (window.top.location = ...).
+ * 4. Prevents history poisoning and back-button traps.
+ * 5. Instantly reclaims window focus if any rogue window tries to steal focus.
  */
 
 let isInternalNavigation = false;
@@ -19,7 +22,7 @@ export function markInternalNavigation() {
   if (navigationTimer) clearTimeout(navigationTimer);
   navigationTimer = setTimeout(() => {
     isInternalNavigation = false;
-  }, 3500);
+  }, 4000);
 }
 
 /**
@@ -27,6 +30,7 @@ export function markInternalNavigation() {
  */
 export function recordPlayerInteraction() {
   lastIframeTouchTime = Date.now();
+  markInternalNavigation();
 }
 
 /**
@@ -35,9 +39,33 @@ export function recordPlayerInteraction() {
 export function initAntiRedirectShield() {
   if (typeof window === 'undefined') return () => {};
 
-  // 1. Capture genuine user interactions across the application
+  // 1. Monkey-patch window.open to block rogue ad popups and popunders
+  if (typeof window.open === 'function') {
+    const originalOpen = window.open.bind(window);
+    try {
+      window.open = function (url, target, features) {
+        if (!isInternalNavigation) {
+          console.warn('[AdShield] Blocked unauthorized popup/window.open:', url);
+          return null;
+        }
+        return originalOpen(url, target, features);
+      };
+    } catch (_) {
+      // Non-fatal if browser environment forbids overriding window.open
+    }
+  }
+
+  // 2. Capture genuine user interactions across the application and block synthetic ad clicks
   const handleUserClick = (e) => {
-    // If the click originated inside our React application on interactive elements
+    // If click is synthetic (e.g. ad script calling link.click() programmatically)
+    if (e.isTrusted === false && !isInternalNavigation) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return;
+    }
+
+    // Genuine user interaction on app controls
     const interactiveTarget = e.target?.closest?.(
       'a, button, input, select, textarea, [role="button"], [data-nav], [tabindex]'
     );
@@ -46,7 +74,7 @@ export function initAntiRedirectShield() {
     }
   };
 
-  // 2. Intercept unauthorized top-window redirects from cross-origin ad scripts
+  // 3. Intercept unauthorized top-window redirects from cross-origin ad scripts
   const handleBeforeUnload = (e) => {
     if (!isInternalNavigation) {
       // An unauthorized ad script inside an iframe is attempting to hijack window.top.location
@@ -56,22 +84,20 @@ export function initAntiRedirectShield() {
     }
   };
 
-  // 3. Anti-Popup Focus Recovery:
+  // 4. Anti-Popup Focus Recovery:
   // When an ad script attempts window.open(), window loses focus.
-  // Immediately refocus ExoticHub so the user is not pulled into third-party spam.
+  // Immediately refocus ExoticHub so the user is never pulled away.
   const handleWindowBlur = () => {
-    const elapsed = Date.now() - lastIframeTouchTime;
-    if (elapsed < 1500) {
-      // Ad script just opened a popup window/tab
+    if (!isInternalNavigation) {
       setTimeout(() => {
         try {
           window.focus();
         } catch (_) {}
-      }, 60);
+      }, 50);
     }
   };
 
-  // 4. Trap back-button hijacking / history poisoning
+  // 5. Trap back-button hijacking / history poisoning
   const handlePopState = () => {
     if (!isInternalNavigation) {
       try {
