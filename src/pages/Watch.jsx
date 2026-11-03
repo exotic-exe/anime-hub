@@ -294,9 +294,6 @@ export default function Watch() {
     loadEpisodeStream(epObj, selectedEp, serverId, resumeTime);
   }
 
-  const retryCountRef = useRef(0);
-  const lastErrorTimeRef = useRef(0);
-
   // Auto-switch to next mirror in the same language track
   function handleAutoSwitchNext() {
     const resumeTime = playbackTimeRef.current;
@@ -367,70 +364,19 @@ export default function Watch() {
     return match?.shortName || activeServerId;
   }, [activeServerId, currentResolvedServer]);
 
-  // Listen to postMessage events from AnimeEmbed for seamless auto-failover & progress tracking
+  // Listen to postMessage events from AnimeEmbed for progress tracking and auto-next episode
   useEffect(() => {
     function handleMessage(event) {
       if (event.origin !== 'https://www.animeembed.com') return;
       const data = event.data;
       if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
 
+      // Track playback progress continuously (for seamless reload & server switch)
       if (data.event === 'progress' && typeof data.data?.currentTime === 'number') {
         playbackTimeRef.current = data.data.currentTime;
-        retryCountRef.current = 0; // Clear retry count on smooth playback
       }
 
-      if (data.event === 'error') {
-        const now = Date.now();
-        // Debounce error handling by at least 4 seconds to prevent thrashing
-        if (now - lastErrorTimeRef.current < 4000) return;
-        lastErrorTimeRef.current = now;
-
-        const resumeTime = playbackTimeRef.current;
-        console.warn('Playback error detected from embed player:', data);
-
-        // If we are currently on Dub and it errors (e.g. no English dub exists), recover to Sub HD
-        if (currentResolvedServer === 'server-3' || currentResolvedServer === 'server-4') {
-          showNotice('Dub not available for this anime — switching to Sub HD...');
-          setCurrentResolvedServer('server-1');
-          setActiveServerId('server-1');
-          if (id) {
-            setStreamUrl('');
-            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
-          }
-          return;
-        }
-
-        // In Sub mode: first attempt clean reconnect of Server 1 at exact timestamp
-        if (retryCountRef.current === 0) {
-          retryCountRef.current++;
-          showNotice(resumeTime > 5 ? `Connection stalled — resuming at ${Math.floor(resumeTime)}s...` : 'Reconnecting stream...');
-          if (id) {
-            setIframeUrl('');
-            setTimeout(() => {
-              setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
-            }, 80);
-          }
-        } else if (retryCountRef.current === 1) {
-          // If second error within short interval, try mirror server 2
-          retryCountRef.current++;
-          showNotice('Trying backup mirror...');
-          setCurrentResolvedServer('server-2');
-          if (id) {
-            setStreamUrl('');
-            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-2', resumeTime));
-          }
-        } else {
-          // Reset to server 1
-          retryCountRef.current = 0;
-          setCurrentResolvedServer('server-1');
-          showNotice('Restoring Server 1 HD connection...');
-          if (id) {
-            setStreamUrl('');
-            setIframeUrl(getEmbedUrlForServer(id, selectedEp, 'server-1', resumeTime));
-          }
-        }
-      }
-
+      // Automatically play next episode when current episode ends
       if (data.event === 'ended') {
         if (selectedEp < totalEpisodes) {
           selectEpisodeNumber(selectedEp + 1);
@@ -440,7 +386,7 @@ export default function Watch() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedEp, totalEpisodes, currentResolvedServer, id, activeServerId]);
+  }, [selectedEp, totalEpisodes]);
 
   useEffect(() => {
     let cancelled = false;
