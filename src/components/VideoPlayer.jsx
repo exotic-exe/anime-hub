@@ -60,12 +60,14 @@ export default function VideoPlayer({
   }, [subtitleUrl]);
 
   // Track iframe playback state via postMessage from AnimeEmbed
+  // Accepts messages from our own origin (/api/embed proxy) OR direct animeembed.com
   useEffect(() => {
+    const ALLOWED = new Set([window.location.origin, 'https://www.animeembed.com']);
     function handleIframeMessage(e) {
-      if (e.origin !== 'https://www.animeembed.com') return;
+      if (!ALLOWED.has(e.origin)) return;
       const data = e.data;
       if (!data || data.channel !== 'animeembed') return;
-      if (data.event === 'play' || data.event === 'progress') {
+      if (data.event === 'play' || data.event === 'progress' || data.event === 'ready') {
         setIframeStarted(true);
       }
     }

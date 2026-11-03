@@ -68,24 +68,28 @@ const SERVERS = [
   },
 ];
 
-// Helper to generate clean embed URLs with optional resume timestamp
+// Helper to generate clean, high-speed direct CDN embed URLs with autoPlay and autoSkip
 function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
   if (!animeId) return '';
   const num = Math.max(1, Number(epNum) || 1);
   const startSec = Math.floor(Number(startTime) || 0);
-  const startParam = startSec > 3 ? `&start=${startSec}&autoPlay=1` : '&autoPlay=1';
+  const startParam = startSec > 3 ? `&start=${startSec}` : '';
+
+  let track = 'sub';
+  let server = '1';
 
   if (serverId === 'server-2') {
-    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub&server=2${startParam}`;
+    track = 'sub';
+    server = '2';
+  } else if (serverId === 'server-3') {
+    track = 'dub';
+    server = '1';
+  } else if (serverId === 'server-4') {
+    track = 'dub';
+    server = '2';
   }
-  if (serverId === 'server-3') {
-    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub&server=1${startParam}`;
-  }
-  if (serverId === 'server-4') {
-    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub&server=2${startParam}`;
-  }
-  // Default / server-1 / auto: Sub on server 1
-  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub&server=1${startParam}`;
+
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1${startParam}`;
 }
 
 export default function Watch() {
@@ -95,18 +99,29 @@ export default function Watch() {
   const [anime, setAnime] = useState(null);
   const [seasons, setSeasons] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEp, setSelectedEp] = useState(1);
+
+  // Derive starting episode immediately from URL params or local watch history (0ms latency)
+  const initialEp = useMemo(() => {
+    const paramEp = parseInt(searchParams.get('ep'), 10);
+    if (!isNaN(paramEp) && paramEp > 0) return paramEp;
+    const saved = getAnimeHistory(id);
+    return saved?.episode > 0 ? saved.episode : 1;
+  }, [id, searchParams]);
+
+  const initialServer = useMemo(() => {
+    return 'server-1';
+  }, []);
+
+  const [selectedEp, setSelectedEp] = useState(initialEp);
+  const [activeServerId, setActiveServerId] = useState('auto');
+  const [currentResolvedServer, setCurrentResolvedServer] = useState(initialServer);
   const [streamUrl, setStreamUrl] = useState('');
-  const [iframeUrl, setIframeUrl] = useState('');
+  const [iframeUrl, setIframeUrl] = useState(() => getEmbedUrlForServer(id, initialEp, initialServer));
   const [streamHeaders, setStreamHeaders] = useState(null);
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamError, setStreamError] = useState(null);
   const [streamEpisodes, setStreamEpisodes] = useState([]);
   const [resumedFromHistory, setResumedFromHistory] = useState(false);
-
-  // Auto-Switcher & Multi-Server State
-  const [activeServerId, setActiveServerId] = useState('auto');
-  const [currentResolvedServer, setCurrentResolvedServer] = useState('server-1');
   const [autoSwitchNotice, setAutoSwitchNotice] = useState(null);
   const noticeTimerRef = useRef(null);
   const playbackTimeRef = useRef(0);
@@ -368,10 +383,17 @@ export default function Watch() {
     return match?.shortName || activeServerId;
   }, [activeServerId, currentResolvedServer]);
 
-  // Listen to postMessage events from AnimeEmbed for progress tracking and auto-next episode
+  // Listen to postMessage events from AnimeEmbed for progress tracking and auto-next episode.
+  // The iframe is now served via /api/embed (same origin), so messages arrive from window.location.origin.
+  // We also accept messages from www.animeembed.com for direct embeds (fallback).
   useEffect(() => {
+    const ALLOWED_ORIGINS = new Set([
+      window.location.origin,
+      'https://www.animeembed.com',
+    ]);
+
     function handleMessage(event) {
-      if (event.origin !== 'https://www.animeembed.com') return;
+      if (!ALLOWED_ORIGINS.has(event.origin)) return;
       const data = event.data;
       if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
 
@@ -398,13 +420,12 @@ export default function Watch() {
     async function load() {
       try {
         setLoading(true);
-        setStreamUrl('');
-        setIframeUrl('');
         setStreamError(null);
 
         const data = await fetchAnimeDetails(id);
         if (cancelled) return;
         setAnime(data);
+        setLoading(false);
 
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
         document.title = `Watch ${animeTitle} Online — ExoticHub`;
@@ -413,18 +434,6 @@ export default function Watch() {
           `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
 
-        // Determine starting episode: URL param ?ep=N > saved Watch History > Episode 1
-        let startEp = 1;
-        const paramEp = parseInt(searchParams.get('ep'), 10);
-        const savedHistory = getAnimeHistory(id);
-
-        if (!isNaN(paramEp) && paramEp > 0) {
-          startEp = paramEp;
-        } else if (savedHistory && savedHistory.episode > 0) {
-          startEp = savedHistory.episode;
-          setResumedFromHistory(true);
-        }
-
         const explicit = Number(data?.episodes);
         const computedMax = Math.max(
           explicit || 0,
@@ -432,10 +441,12 @@ export default function Watch() {
           data?.streamingEpisodes?.length || 0,
           1
         );
-        const safeEp = Math.min(Math.max(1, startEp), computedMax);
+        const safeEp = Math.min(Math.max(1, selectedEp), computedMax);
 
-        setSelectedEp(safeEp);
-        setSearchParams({ ep: safeEp }, { replace: true });
+        if (safeEp !== selectedEp) {
+          setSelectedEp(safeEp);
+          setSearchParams({ ep: safeEp }, { replace: true });
+        }
 
         // Save progress to watch history
         saveWatchHistory({
@@ -447,14 +458,6 @@ export default function Watch() {
           banner: data.bannerImage,
           format: data.format,
         });
-
-        // Initialize stream IMMEDIATELY (Instant load!)
-        const initialServer = activeServerId === 'server-3' ? 'server-3' : activeServerId === 'server-2' ? 'server-2' : 'server-1';
-        setCurrentResolvedServer(initialServer);
-        setStreamUrl('');
-        setIframeUrl(getEmbedUrlForServer(data.id, safeEp, initialServer));
-        setStreamLoading(false);
-        setLoading(false);
 
         // Fetch seasons non-blocking in background
         fetchAnimeSeasons(data)
@@ -475,18 +478,7 @@ export default function Watch() {
     };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-[#ededed]">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!anime) {
+  if (!loading && !anime) {
     return (
       <div className="min-h-screen bg-black text-[#ededed]">
         <Navbar />
@@ -500,7 +492,7 @@ export default function Watch() {
     );
   }
 
-  const title = anime.title?.english || anime.title?.romaji;
+  const title = anime?.title?.english || anime?.title?.romaji || 'Anime Stream';
 
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
@@ -516,7 +508,7 @@ export default function Watch() {
                 url={streamUrl}
                 iframe={iframeUrl}
                 streamHeaders={streamHeaders}
-                poster={anime.bannerImage || anime.coverImage?.extraLarge}
+                poster={anime?.bannerImage || anime?.coverImage?.extraLarge}
                 animeName={title}
                 episodeTitle={`Episode ${selectedEp}`}
                 onEnded={() => {
@@ -683,19 +675,25 @@ export default function Watch() {
             <div className="space-y-3 pt-2">
               <h1 className="text-2xl sm:text-3xl font-black text-white">{title}</h1>
               <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-400 font-semibold">
-                {anime.averageScore && (
+                {anime?.averageScore && (
                   <span className="flex items-center gap-1 text-white">
                     <Star className="w-4 h-4 fill-current text-white" />
                     {anime.averageScore}% Score
                   </span>
                 )}
-                <span>• {anime.format || 'TV'}</span>
-                <span>• {anime.status}</span>
+                <span>• {anime?.format || 'TV'}</span>
+                <span>• {anime?.status || 'Active'}</span>
                 <span className="text-white font-bold">• {totalEpisodes} Total Episodes</span>
               </div>
-              <p className="text-sm text-zinc-300 leading-relaxed pt-2">
-                {stripHtml(anime.description)}
-              </p>
+              {anime?.description ? (
+                <p className="text-sm text-zinc-300 leading-relaxed pt-2">
+                  {stripHtml(anime.description)}
+                </p>
+              ) : (
+                <p className="text-sm text-zinc-500 leading-relaxed pt-2">
+                  Streaming high-definition anime online on ExoticHub with auto-skip and ad protection.
+                </p>
+              )}
             </div>
           </div>
 
@@ -838,7 +836,12 @@ export default function Watch() {
 
             {/* Episode List / Grid Content */}
             <div className="flex-1 overflow-y-auto pr-1 custom-scroll">
-              {displayedEpisodes.length === 0 ? (
+              {loading && !anime ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-3 text-zinc-500">
+                  <div className="w-6 h-6 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+                  <span className="text-xs font-semibold">Loading episodes...</span>
+                </div>
+              ) : displayedEpisodes.length === 0 ? (
                 <div className="text-center py-12 text-zinc-500 text-xs font-semibold">
                   No episodes found matching "{searchQuery}"
                 </div>
