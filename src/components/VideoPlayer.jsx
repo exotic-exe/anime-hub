@@ -78,6 +78,8 @@ export default function VideoPlayer({
   const feedbackTimerRef = useRef(null);
   const lastClickTimeRef = useRef(0);
   const clickTimeoutRef = useRef(null);
+  const autoRetryCountRef = useRef(0);
+  const lastErrorTimeRef = useRef(0);
 
   // Sync state when props change
   useEffect(() => {
@@ -120,6 +122,38 @@ export default function VideoPlayer({
     }, 650);
   }, []);
 
+  // Reconnect and reload iframe stream at exact timestamp
+  const handleIframeReconnect = useCallback(
+    (targetTime) => {
+      const resume =
+        typeof targetTime === 'number' ? targetTime : currentTimeRef.current || currentTime || 0;
+      setIsReconnecting(true);
+      setPlaybackError(null);
+      if (onReloadStream) {
+        onReloadStream(resume);
+        setTimeout(() => {
+          setIsReconnecting(false);
+        }, 1200);
+      } else {
+        setActiveIframe('');
+        setTimeout(() => {
+          try {
+            const u = new URL(iframe, window.location.origin);
+            u.searchParams.set('start', String(Math.floor(resume)));
+            u.searchParams.set('autoPlay', '1');
+            u.searchParams.set('autoSkip', '0');
+            u.searchParams.set('_t', String(Date.now()));
+            setActiveIframe(u.toString());
+          } catch (_) {
+            setActiveIframe(iframe);
+          }
+          setIsReconnecting(false);
+        }, 80);
+      }
+    },
+    [iframe, onReloadStream, currentTime]
+  );
+
   // Track iframe playback state via postMessage from AnimeEmbed
   useEffect(() => {
     const ALLOWED = new Set([window.location.origin, 'https://www.animeembed.com']);
@@ -131,6 +165,9 @@ export default function VideoPlayer({
       if (data.event === 'play') {
         setIframeStarted(true);
         setIframePlaying(true);
+        setPlaybackError(null);
+        setIsReconnecting(false);
+        autoRetryCountRef.current = 0;
       } else if (data.event === 'pause') {
         setIframePlaying(false);
       } else if (data.event === 'ended') {
@@ -138,6 +175,9 @@ export default function VideoPlayer({
         if (typeof onEnded === 'function') onEnded();
       } else if (data.event === 'progress') {
         setIframeStarted(true);
+        setPlaybackError(null);
+        setIsReconnecting(false);
+        autoRetryCountRef.current = 0;
         if (typeof data.data?.currentTime === 'number') {
           if (!isDraggingSeekRef.current) {
             setCurrentTime(data.data.currentTime);
@@ -147,11 +187,45 @@ export default function VideoPlayer({
         if (typeof data.data?.duration === 'number' && data.data.duration > 0) {
           setDuration(data.data.duration);
         }
+      } else if (data.event === 'error') {
+        const errorMsg = data.data?.message || 'Playback interrupted';
+        console.warn('[VideoPlayer] Upstream playback error:', errorMsg);
+        const time = currentTimeRef.current || currentTime || 0;
+
+        const now = Date.now();
+        if (now - lastErrorTimeRef.current > 1200) {
+          lastErrorTimeRef.current = now;
+
+          if (autoRetryCountRef.current < 2) {
+            autoRetryCountRef.current += 1;
+            setIsReconnecting(true);
+            showFeedback('backward', `Auto-reconnecting at ${formatPlaybackTime(time)}...`);
+            setTimeout(() => {
+              handleIframeReconnect(time);
+            }, 600);
+          } else {
+            // Consecutive errors on this server mirror: failover to next mirror
+            if (onNextServer) {
+              autoRetryCountRef.current = 0;
+              setIsReconnecting(true);
+              showFeedback('forward', 'Auto-switching to mirror server...');
+              setTimeout(() => {
+                onNextServer(time);
+              }, 600);
+            } else {
+              setPlaybackError({
+                message: errorMsg,
+                time,
+              });
+              setIsReconnecting(false);
+            }
+          }
+        }
       }
     }
     window.addEventListener('message', handleIframeMessage);
     return () => window.removeEventListener('message', handleIframeMessage);
-  }, [onEnded]);
+  }, [onEnded, onReloadStream, onNextServer, handleIframeReconnect, showFeedback, currentTime]);
 
   // Smooth continuous progress increment while playing (resynced on every progress event)
   useEffect(() => {
@@ -259,11 +333,13 @@ export default function VideoPlayer({
     [isMuted, sendIframeCommand, showFeedback]
   );
 
-  // Skip intro helper
+  // Skip intro helper (smoothly advances beyond intro while avoiding keyframe stalls)
   const handleSkipIntro = useCallback(() => {
-    handleSeekTo(85);
+    const current = currentTimeRef.current || currentTime || 0;
+    const target = Math.max(90, current + 85);
+    handleSeekTo(target);
     showFeedback('forward', 'Intro Skipped');
-  }, [handleSeekTo, showFeedback]);
+  }, [handleSeekTo, showFeedback, currentTime]);
 
   // Single & Double click detection over video surface
   function handleScreenClick(e) {
@@ -1093,47 +1169,6 @@ export default function VideoPlayer({
         ) : hasDirectStream ? (
           <>
             <div ref={artRef} className="w-full h-full" />
-
-            {/* In-Player Error Recovery Overlay */}
-            {playbackError && (
-              <div className="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-in fade-in">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-extrabold text-white">Playback Interrupted</h3>
-                <p className="text-xs text-zinc-400 mt-1 max-w-sm">
-                  {playbackError.message} You were watching at{' '}
-                  <span className="text-white font-bold">
-                    {formatPlaybackTime(playbackError.time)}
-                  </span>
-                  .
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => handleReconnect(playbackError.time)}
-                    disabled={isReconnecting}
-                    className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
-                    <span>Reconnect & Resume at {formatPlaybackTime(playbackError.time)}</span>
-                  </button>
-                  {onFallbackToIframe && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPlaybackError(null);
-                        onFallbackToIframe();
-                      }}
-                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition border border-zinc-700 flex items-center gap-1.5 active:scale-95 cursor-pointer"
-                    >
-                      <Server className="w-3.5 h-3.5" />
-                      <span>Switch to Backup Player</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <div className="relative w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden">
@@ -1152,6 +1187,64 @@ export default function VideoPlayer({
                 Loading stream source for {episodeTitle}...
               </p>
               <p className="text-xs text-zinc-500">Select any episode from the list to stream</p>
+            </div>
+          </div>
+        )}
+
+        {/* Universal In-Player Error Recovery Overlay (Both Iframe & Direct Stream) */}
+        {playbackError && (
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in select-none">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-extrabold text-white">Playback Interrupted</h3>
+            <p className="text-xs text-zinc-400 mt-1 max-w-sm">
+              {playbackError.message || 'Stream connection stalled or network disconnected.'} You were watching at{' '}
+              <span className="text-white font-bold">
+                {formatPlaybackTime(playbackError.time)}
+              </span>
+              .
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasIframe) {
+                    handleIframeReconnect(playbackError.time);
+                  } else {
+                    handleReconnect(playbackError.time);
+                  }
+                }}
+                disabled={isReconnecting}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
+                <span>
+                  {isReconnecting
+                    ? 'Reconnecting...'
+                    : `Reconnect & Resume at ${formatPlaybackTime(playbackError.time)}`}
+                </span>
+              </button>
+              {(onNextServer || onFallbackToIframe) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = playbackError.time;
+                    setPlaybackError(null);
+                    if (hasIframe && onNextServer) {
+                      onNextServer(t);
+                    } else if (onFallbackToIframe) {
+                      onFallbackToIframe();
+                    } else if (onNextServer) {
+                      onNextServer(t);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition border border-zinc-700 flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                >
+                  <Server className="w-3.5 h-3.5" />
+                  <span>Switch to Mirror Server</span>
+                </button>
+              )}
             </div>
           </div>
         )}

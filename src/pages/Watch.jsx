@@ -68,7 +68,7 @@ const SERVERS = [
   },
 ];
 
-// Helper to generate clean, high-speed direct CDN embed URLs with autoPlay and autoSkip
+// Helper to generate clean, high-speed direct CDN embed URLs with autoPlay and autoSkip=0
 function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
   if (!animeId) return '';
   const num = Math.max(1, Number(epNum) || 1);
@@ -89,7 +89,8 @@ function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
     server = '2';
   }
 
-  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1${startParam}`;
+  // Pass autoSkip=0 to prevent animeembed internal script from violently jumping currentTime and crashing HLS
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1&autoSkip=0${startParam}`;
 }
 
 export default function Watch() {
@@ -314,8 +315,8 @@ export default function Watch() {
   }
 
   // Auto-switch to next mirror in the same language track
-  function handleAutoSwitchNext() {
-    const resumeTime = playbackTimeRef.current;
+  function handleAutoSwitchNext(targetTime) {
+    const resumeTime = typeof targetTime === 'number' ? targetTime : playbackTimeRef.current;
     
     // Dub mode: toggle between Server 3 and Server 4
     if (activeServerId === 'server-3' || activeServerId === 'server-4' || currentResolvedServer === 'server-3' || currentResolvedServer === 'server-4') {
@@ -325,7 +326,7 @@ export default function Watch() {
       showNotice(resumeTime > 5 ? `Switched to ${serverObj?.name || nextServer} (Resuming at ${Math.floor(resumeTime)}s)` : `Switched to ${serverObj?.name || nextServer}`);
       if (id) {
         setStreamUrl('');
-        setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
+        setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime) + '&_t=' + Date.now());
       }
       return;
     }
@@ -342,13 +343,13 @@ export default function Watch() {
 
     if (id) {
       setStreamUrl('');
-      setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime));
+      setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer, resumeTime) + '&_t=' + Date.now());
     }
   }
 
   // Refresh and reload current stream preserving timestamp
-  function handleReloadCurrentStream() {
-    const resumeTime = playbackTimeRef.current;
+  function handleReloadCurrentStream(targetTime) {
+    const resumeTime = typeof targetTime === 'number' ? targetTime : playbackTimeRef.current;
     showNotice(resumeTime > 5 ? `Reloading & resuming at ${Math.floor(resumeTime)}s...` : 'Reloading stream connection...');
     if (streamUrl && !iframeUrl) {
       const current = streamUrl;
@@ -360,7 +361,7 @@ export default function Watch() {
     } else if (id) {
       setIframeUrl('');
       setTimeout(() => {
-        setIframeUrl(getEmbedUrlForServer(id, selectedEp, currentResolvedServer, resumeTime));
+        setIframeUrl(getEmbedUrlForServer(id, selectedEp, currentResolvedServer, resumeTime) + '&_t=' + Date.now());
         showNotice('Stream reconnected');
       }, 60);
     } else {
