@@ -622,9 +622,8 @@ export default function Watch() {
                     type="button"
                     onClick={handleAutoSwitchNext}
                     title="Force cycle to next working mirror"
-                    className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition active:scale-95 cursor-pointer"
                   >
-                    <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
                     <span>Auto-Switch Next</span>
                   </button>
                 </div>
