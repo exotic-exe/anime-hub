@@ -60,6 +60,20 @@ const SERVERS = [
   },
 ];
 
+// Helper to generate clean embed URLs without invalid query parameters
+function getEmbedUrlForServer(animeId, epNum, serverId) {
+  if (!animeId) return '';
+  const num = Math.max(1, Number(epNum) || 1);
+  if (serverId === 'server-3') {
+    return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=dub`;
+  }
+  if (serverId === 'server-2') {
+    return `https://www.animeembed.com/embed/ani/${animeId}/${num}`;
+  }
+  // Default / server-1 / auto: Sub
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=sub`;
+}
+
 export default function Watch() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -193,82 +207,28 @@ export default function Watch() {
     return episodesList;
   }, [episodesList, searchQuery, activeChunk, totalEpisodes]);
 
-  // Load stream for an episode based on target server
-  async function loadEpisodeStream(ep, epNumber, targetServerId = activeServerId) {
+  // Load stream for an episode instantly without artificial delays
+  function loadEpisodeStream(ep, epNumber, targetServerId = activeServerId) {
     const num = epNumber || ep?.number || selectedEp || 1;
-    setStreamLoading(true);
     setStreamError(null);
+    setStreamLoading(false);
 
-    const ts = Date.now();
-
-    try {
-      if (targetServerId === 'auto') {
-        // Step 1: In Auto mode, try direct HD stream if episode id exists
-        if (ep?.id) {
-          try {
-            const stream = await fetchEpisodeStream(ep.id);
-            const directUrl = getBestStreamUrl(stream?.sources);
-            const embedIframe = stream?.iframe;
-
-            setStreamHeaders(stream?.headers || null);
-
-            if (directUrl) {
-              setIframeUrl('');
-              setStreamUrl(directUrl);
-              setCurrentResolvedServer('direct');
-              return;
-            } else if (embedIframe) {
-              setStreamUrl('');
-              setIframeUrl(embedIframe);
-              setCurrentResolvedServer('direct-embed');
-              return;
-            }
-          } catch (scraperErr) {
-            console.warn('Auto mode direct stream scraper failed, auto-falling back to Server 1', scraperErr);
-          }
-        }
-
-        // Step 2: Auto fallback to dedicated Server 1 (Sub)
-        if (id) {
-          setStreamUrl('');
-          setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?track=sub&_t=${ts}`);
-          setCurrentResolvedServer('server-1');
-          return;
-        }
-      } else if (targetServerId === 'server-1') {
-        setStreamUrl('');
-        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?track=sub&_t=${ts}`);
-        setCurrentResolvedServer('server-1');
-        return;
-      } else if (targetServerId === 'server-2') {
-        setStreamUrl('');
-        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?_t=${ts}`);
-        setCurrentResolvedServer('server-2');
-        return;
-      } else if (targetServerId === 'server-3') {
-        setStreamUrl('');
-        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?track=dub&_t=${ts}`);
-        setCurrentResolvedServer('server-3');
-        return;
-      }
-
-      setStreamError('No stream source found for this episode.');
-    } catch (err) {
-      console.warn('Episode stream loading failed, cycling to fallback server', err);
-      if (id) {
-        setStreamUrl('');
-        setIframeUrl(`https://www.animeembed.com/embed/ani/${id}/${num}?_t=${ts}`);
-        setCurrentResolvedServer('server-2');
-      } else {
-        setStreamError('Failed to load stream for this episode.');
-      }
-    } finally {
-      setStreamLoading(false);
+    let resolvedServer = 'server-1';
+    if (targetServerId === 'server-2') {
+      resolvedServer = 'server-2';
+    } else if (targetServerId === 'server-3') {
+      resolvedServer = 'server-3';
+    } else {
+      resolvedServer = 'server-1';
     }
+
+    setCurrentResolvedServer(resolvedServer);
+    setStreamUrl('');
+    setIframeUrl(getEmbedUrlForServer(id, num, resolvedServer));
   }
 
   // Handle episode click
-  async function handleEpClick(ep) {
+  function handleEpClick(ep) {
     const num = ep.number;
     setSelectedEp(num);
     setSearchParams({ ep: num }, { replace: true });
@@ -283,11 +243,11 @@ export default function Watch() {
         format: anime.format,
       });
     }
-    await loadEpisodeStream(ep, num, activeServerId);
+    loadEpisodeStream(ep, num, activeServerId);
   }
 
   // Quick jump by episode number
-  async function selectEpisodeNumber(epNum) {
+  function selectEpisodeNumber(epNum) {
     if (epNum < 1 || epNum > totalEpisodes) return;
     setSelectedEp(epNum);
     setSearchParams({ ep: epNum }, { replace: true });
@@ -303,7 +263,7 @@ export default function Watch() {
         format: anime.format,
       });
     }
-    await loadEpisodeStream(epObj, epNum, activeServerId);
+    loadEpisodeStream(epObj, epNum, activeServerId);
   }
 
   // User manually selects a server
@@ -332,36 +292,27 @@ export default function Watch() {
 
     if (id) {
       setStreamUrl('');
-      const ts = Date.now();
-      const nextUrl =
-        nextServer === 'server-1'
-          ? `https://www.animeembed.com/embed/ani/${id}/${selectedEp}?track=sub&_t=${ts}`
-          : nextServer === 'server-2'
-          ? `https://www.animeembed.com/embed/ani/${id}/${selectedEp}?_t=${ts}`
-          : `https://www.animeembed.com/embed/ani/${id}/${selectedEp}?track=dub&_t=${ts}`;
-      setIframeUrl(nextUrl);
+      setIframeUrl(getEmbedUrlForServer(id, selectedEp, nextServer));
     }
   }
 
-  // Refresh and reload current stream / renew CDN token
+  // Refresh and reload current stream without corrupting query params
   function handleReloadCurrentStream() {
-    showNotice('Reloading stream & renewing connection...');
+    showNotice('Reloading stream...');
     if (streamUrl && !iframeUrl) {
       const current = streamUrl;
       setStreamUrl('');
       setTimeout(() => {
         setStreamUrl(current);
         showNotice('Stream reloaded');
-      }, 150);
+      }, 60);
     } else if (iframeUrl) {
-      const base = iframeUrl.split('&_t=')[0].split('?_t=')[0];
-      const sep = base.includes('?') ? '&' : '?';
-      const refreshed = `${base}${sep}_t=${Date.now()}`;
+      const current = iframeUrl;
       setIframeUrl('');
       setTimeout(() => {
-        setIframeUrl(refreshed);
-        showNotice('Stream connection refreshed');
-      }, 150);
+        setIframeUrl(current);
+        showNotice('Stream connection reloaded');
+      }, 60);
     } else {
       const epObj = episodesList.find((e) => e.number === selectedEp) || { number: selectedEp };
       loadEpisodeStream(epObj, selectedEp, activeServerId);
@@ -382,24 +333,18 @@ export default function Watch() {
   }, [activeServerId, currentResolvedServer]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
         setLoading(true);
         setStreamUrl('');
         setIframeUrl('');
         setStreamError(null);
-        setStreamEpisodes([]);
 
         const data = await fetchAnimeDetails(id);
+        if (cancelled) return;
         setAnime(data);
-
-        // Fetch franchise seasons for the season changer
-        try {
-          const s = await fetchAnimeSeasons(data);
-          setSeasons(s || []);
-        } catch (seasonErr) {
-          console.warn('Seasons fetch error', seasonErr);
-        }
 
         const animeTitle = data?.title?.english || data?.title?.romaji || 'Anime';
         document.title = `Watch ${animeTitle} Online — ExoticHub`;
@@ -407,37 +352,6 @@ export default function Watch() {
           'content',
           `Watch ${animeTitle} online in HD with Artplayer, custom subtitles (CC), and skip intro on ExoticHub.`
         );
-
-        // Streaming provider: try english title, then romaji, then clean title prefix
-        let loadedEpisodes = [];
-        try {
-          let match = null;
-          const candidates = [
-            data?.title?.english,
-            data?.title?.romaji,
-            data?.title?.english?.split(/[:–—\-]/)[0]?.trim(),
-            data?.title?.romaji?.split(/[:–—\-]/)[0]?.trim(),
-          ].filter(Boolean);
-
-          for (const cand of [...new Set(candidates)]) {
-            const search = await searchStreamAnime(cand);
-            if (search?.results && search.results.length > 0) {
-              match = search.results[0];
-              break;
-            }
-          }
-
-          if (match?.id) {
-            const epData = await fetchStreamEpisodes(match.id);
-            const eps = epData?.episodes || [];
-            if (eps.length > 0) {
-              setStreamEpisodes(eps);
-              loadedEpisodes = eps;
-            }
-          }
-        } catch (streamErr) {
-          console.warn('Streaming setup fallback to embed player', streamErr);
-        }
 
         // Determine starting episode: URL param ?ep=N > saved Watch History > Episode 1
         let startEp = 1;
@@ -451,12 +365,11 @@ export default function Watch() {
           setResumedFromHistory(true);
         }
 
-        const explicit = Number(data.episodes);
+        const explicit = Number(data?.episodes);
         const computedMax = Math.max(
           explicit || 0,
-          data.nextAiringEpisode?.episode ? data.nextAiringEpisode.episode - 1 : 0,
-          loadedEpisodes.length || 0,
-          data.streamingEpisodes?.length || 0,
+          data?.nextAiringEpisode?.episode ? data.nextAiringEpisode.episode - 1 : 0,
+          data?.streamingEpisodes?.length || 0,
           1
         );
         const safeEp = Math.min(Math.max(1, startEp), computedMax);
@@ -475,15 +388,31 @@ export default function Watch() {
           format: data.format,
         });
 
-        const targetEp = loadedEpisodes.find((e) => e.number === safeEp) || { number: safeEp };
-        await loadEpisodeStream(targetEp, safeEp);
+        // Initialize stream IMMEDIATELY (Instant load!)
+        const initialServer = activeServerId === 'server-3' ? 'server-3' : activeServerId === 'server-2' ? 'server-2' : 'server-1';
+        setCurrentResolvedServer(initialServer);
+        setStreamUrl('');
+        setIframeUrl(getEmbedUrlForServer(data.id, safeEp, initialServer));
+        setStreamLoading(false);
+        setLoading(false);
+
+        // Fetch seasons non-blocking in background
+        fetchAnimeSeasons(data)
+          .then((s) => {
+            if (!cancelled && s) setSeasons(s);
+          })
+          .catch((seasonErr) => console.warn('Seasons fetch error', seasonErr));
+
       } catch (err) {
         console.error('Failed to load anime for watch', err);
-      } finally {
         setLoading(false);
       }
     }
+
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (loading) {
