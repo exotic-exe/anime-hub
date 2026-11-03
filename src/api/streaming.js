@@ -60,6 +60,7 @@ export async function searchStreamAnime(keyword, page = 1) {
 
   try {
     const response = await fetch(`${STREAM_API_URL}/search?keyword=${encodeURIComponent(sanitized)}&page=${page}`);
+    if (!response.ok) return { results: [], currentPage: 1, hasNextPage: false, totalPages: 1 };
     const data = await response.json();
 
     const result = data?.data || data || { results: [], currentPage: 1, hasNextPage: false, totalPages: 1 };
@@ -85,6 +86,7 @@ export async function fetchStreamEpisodes(animeId) {
 
   try {
     const response = await fetch(`${STREAM_API_URL}/episodes/${encodeURIComponent(animeId)}`);
+    if (!response.ok) return { totalEpisodes: 0, episodes: [] };
     const data = await response.json();
 
     const result = data?.data || data || { totalEpisodes: 0, episodes: [] };
@@ -108,6 +110,7 @@ export async function fetchEpisodeStream(episodeId, server = 'HD-1') {
   // Don't cache stream URLs - they may change
   try {
     const response = await fetch(`${STREAM_API_URL}/stream?id=${encodeURIComponent(episodeId)}&server=${encodeURIComponent(server)}`);
+    if (!response.ok) return { headers: {}, sources: [], iframe: null, server: '' };
     const data = await response.json();
 
     return data?.data || data || { headers: {}, sources: [], iframe: null, server: '' };
@@ -127,6 +130,7 @@ export async function getStreamServers(episodeId) {
 
   try {
     const response = await fetch(`${STREAM_API_URL}/servers?id=${encodeURIComponent(episodeId)}`);
+    if (!response.ok) return [];
     const data = await response.json();
 
     return data?.data || data || [];

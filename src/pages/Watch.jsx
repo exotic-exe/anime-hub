@@ -22,6 +22,7 @@ import {
   Zap,
   RefreshCw,
   CheckCircle2,
+  Film,
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
