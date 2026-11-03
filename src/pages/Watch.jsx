@@ -25,6 +25,7 @@ import {
   Film,
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
+import { markInternalNavigation } from '../utils/antiRedirect';
 
 const CHUNK_SIZE = 100;
 
@@ -245,6 +246,7 @@ export default function Watch() {
 
   // Handle episode click
   function handleEpClick(ep) {
+    markInternalNavigation();
     const num = ep.number;
     playbackTimeRef.current = 0;
     setSelectedEp(num);
@@ -265,6 +267,7 @@ export default function Watch() {
 
   // Quick jump by episode number
   function selectEpisodeNumber(epNum) {
+    markInternalNavigation();
     if (epNum < 1 || epNum > totalEpisodes) return;
     playbackTimeRef.current = 0;
     setSelectedEp(epNum);
@@ -286,6 +289,7 @@ export default function Watch() {
 
   // User manually selects a server
   function handleSelectServer(serverId) {
+    markInternalNavigation();
     setActiveServerId(serverId);
     const target = SERVERS.find((s) => s.id === serverId);
     const resumeTime = playbackTimeRef.current;
