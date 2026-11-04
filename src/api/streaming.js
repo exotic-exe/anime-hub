@@ -9,9 +9,9 @@ const getApiBase = () => {
   if (import.meta.env.VITE_STREAM_API_URL) {
     return import.meta.env.VITE_STREAM_API_URL;
   }
-  // Use public Consumet Gogoanime API when deployed on Vercel
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost')) {
-    return 'https://api.consumet.org/anime/gogoanime';
+  // Use own deployed API backend on Vercel
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return '/api/v1';
   }
   // Fallback to local dev server
   return 'http://localhost:3030/api/v1';

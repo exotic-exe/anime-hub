@@ -11,7 +11,9 @@
     "api": "node server.js"
   },
   "imports": {
-    "#*": "./server/src/*"
+    "#*": "./server/src/*",
+    "#services/*": "./server/src/services/*",
+    "#utils/*": "./server/src/utils/*"
   },
   "dependencies": {
     "@consumet/extensions": "^1.8.8",

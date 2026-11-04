@@ -78,10 +78,32 @@ export default function DownloadModal({
   };
 
   const handleCopyLink = (url, id) => {
-    navigator.clipboard.writeText(url).then(() => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => {
+          setCopiedLink(id);
+          setTimeout(() => setCopiedLink(null), 2500);
+        })
+        .catch(() => fallbackCopy(url, id));
+    } else {
+      fallbackCopy(url, id);
+    }
+  };
+
+  const fallbackCopy = (text, id) => {
+    try {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
       setCopiedLink(id);
       setTimeout(() => setCopiedLink(null), 2500);
-    });
+    } catch (_) {}
   };
 
   return (

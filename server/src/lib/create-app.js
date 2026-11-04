@@ -37,6 +37,8 @@ export default function createApp() {
     .use('/api/v1/*', logger())
     .get('/', (c) => c.html(htmlAsString))
     .get('/ping', (c) => c.text('pong'))
+    .get('/api', (c) => c.json({ status: 'online', service: 'ExoticHub API', version: '1.0.0' }))
+    .get('/api/ping', (c) => c.text('pong'))
     .notFound((c) => fail(c, 'page not found', 404))
     .onError((err, c) => {
       if (err instanceof AppError) {
