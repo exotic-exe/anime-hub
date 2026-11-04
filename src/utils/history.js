@@ -3,6 +3,8 @@
  * Persists anime watching progress to localStorage
  */
 
+import { stripHtml, isSafeUrl } from './sanitize';
+
 const HISTORY_KEY = 'exotichub_watch_history';
 const MAX_HISTORY_ITEMS = 50;
 
@@ -47,13 +49,13 @@ export function saveWatchHistory(entry) {
     );
 
     const updatedItem = {
-      animeId: entry.animeId,
-      title: entry.title || 'Anime',
-      episode: Number(entry.episode) || 1,
-      totalEpisodes: Number(entry.totalEpisodes) || 1,
-      poster: entry.poster || '',
-      banner: entry.banner || '',
-      format: entry.format || 'TV',
+      animeId: String(entry.animeId).slice(0, 50),
+      title: stripHtml(entry.title || 'Anime').slice(0, 200),
+      episode: Math.max(1, Math.min(100000, Number(entry.episode) || 1)),
+      totalEpisodes: Math.max(1, Math.min(100000, Number(entry.totalEpisodes) || 1)),
+      poster: isSafeUrl(entry.poster) ? entry.poster : '',
+      banner: isSafeUrl(entry.banner) ? entry.banner : '',
+      format: stripHtml(entry.format || 'TV').slice(0, 20),
       updatedAt: Date.now(),
     };
 

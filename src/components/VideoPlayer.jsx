@@ -158,6 +158,8 @@ export default function VideoPlayer({
     const ALLOWED = new Set([window.location.origin, 'https://www.animeembed.com']);
     function handleIframeMessage(e) {
       if (!ALLOWED.has(e.origin)) return;
+      // Strictly verify that the message sender is our mounted iframe's contentWindow
+      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return;
       const data = e.data;
       if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
 
