@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import Navbar from '../components/Navbar';
 import VideoPlayer from '../components/VideoPlayer';
 import Footer from '../components/Footer';
+import DownloadModal from '../components/DownloadModal';
 import { fetchAnimeDetails, fetchAnimeSeasons } from '../api';
 import { searchStreamAnime, fetchStreamEpisodes, fetchEpisodeStream, getBestStreamUrl } from '../api/streaming';
 import { getAnimeHistory, saveWatchHistory } from '../utils/history';
@@ -23,6 +24,7 @@ import {
   RefreshCw,
   CheckCircle2,
   Film,
+  Download,
 } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 import { markInternalNavigation } from '../utils/antiRedirect';
@@ -125,6 +127,13 @@ export default function Watch() {
   const [autoSwitchNotice, setAutoSwitchNotice] = useState(null);
   const noticeTimerRef = useRef(null);
   const playbackTimeRef = useRef(0);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('download') === 'true') {
+      setDownloadModalOpen(true);
+    }
+  }, [searchParams]);
 
   function showNotice(msg) {
     setAutoSwitchNotice(msg);
@@ -519,6 +528,7 @@ export default function Watch() {
                 onFallbackToIframe={handleAutoSwitchNext}
                 onReloadStream={handleReloadCurrentStream}
                 onNextServer={handleAutoSwitchNext}
+                onDownload={() => setDownloadModalOpen(true)}
                 serverLabel={serverLabel}
                 autoSwitchNotice={autoSwitchNotice}
               />
@@ -567,6 +577,18 @@ export default function Watch() {
                     className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition active:scale-95 cursor-pointer"
                   >
                     <span>Auto-Switch Next</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      markInternalNavigation();
+                      setDownloadModalOpen(true);
+                    }}
+                    title="Download episode with verified mirrors & multi-quality"
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Download</span>
                   </button>
                 </div>
               </div>
@@ -646,9 +668,23 @@ export default function Watch() {
                 <span>Prev Episode</span>
               </button>
 
-              <div className="text-xs font-extrabold text-zinc-300">
-                Episode <span className="text-white font-black">{selectedEp}</span> of{' '}
-                <span className="text-white font-black">{totalEpisodes}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="text-xs font-extrabold text-zinc-300">
+                  Episode <span className="text-white font-black">{selectedEp}</span> of{' '}
+                  <span className="text-white font-black">{totalEpisodes}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    markInternalNavigation();
+                    setDownloadModalOpen(true);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-bold transition flex items-center gap-1 active:scale-95"
+                  title={`Download Episode ${selectedEp}`}
+                >
+                  <Download className="w-3 h-3 text-emerald-400" />
+                  <span className="hidden sm:inline">Download Ep {selectedEp}</span>
+                </button>
               </div>
 
               <button
@@ -912,6 +948,25 @@ export default function Watch() {
                             Episode {ep.number}
                           </div>
                         </div>
+
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markInternalNavigation();
+                            setSelectedEp(ep.number);
+                            setDownloadModalOpen(true);
+                          }}
+                          className={`p-1.5 rounded-lg transition flex-shrink-0 ${
+                            isSelected
+                              ? 'text-black hover:bg-black/10'
+                              : 'text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800'
+                          }`}
+                          title={`Download Episode ${ep.number}`}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </div>
                       </button>
                     );
                   })}
@@ -921,6 +976,16 @@ export default function Watch() {
           </div>
         </div>
       </main>
+
+      {/* Download Modal */}
+      <DownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+        anime={anime}
+        currentEpisode={selectedEp}
+        totalEpisodes={totalEpisodes}
+        onSelectEpisode={(ep) => selectEpisodeNumber(ep)}
+      />
 
       <Footer />
     </div>

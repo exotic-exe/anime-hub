@@ -18,6 +18,7 @@ import {
   Maximize2,
   Minimize2,
   ShieldCheck,
+  Download,
 } from 'lucide-react';
 
 function formatPlaybackTime(seconds) {
@@ -41,6 +42,7 @@ export default function VideoPlayer({
   onFallbackToIframe = null,
   onReloadStream = null,
   onNextServer = null,
+  onDownload = null,
   serverLabel = '',
   autoSwitchNotice = null,
 }) {
@@ -836,6 +838,18 @@ export default function VideoPlayer({
             </span>
           )}
 
+          {onDownload && (
+            <button
+              type="button"
+              onClick={onDownload}
+              title="Download anime episode"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 font-bold text-[11px] transition active:scale-95 cursor-pointer"
+            >
+              <Download className="w-3 h-3" />
+              <span>Download</span>
+            </button>
+          )}
+
           {onReloadStream && (
             <button
               type="button"
@@ -973,6 +987,17 @@ export default function VideoPlayer({
 
             {/* Top-Right Quick Over-Video Actions on Hover */}
             <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
+              {onDownload && (
+                <button
+                  type="button"
+                  onClick={onDownload}
+                  className="px-2.5 py-1 rounded-lg bg-black/85 hover:bg-black text-emerald-400 hover:text-emerald-300 text-[11px] font-bold border border-emerald-500/40 backdrop-blur-md shadow-lg flex items-center gap-1 transition cursor-pointer"
+                  title="Download episode"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download</span>
+                </button>
+              )}
               {onReloadStream && (
                 <button
                   type="button"

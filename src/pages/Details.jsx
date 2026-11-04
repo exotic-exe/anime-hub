@@ -3,14 +3,16 @@ import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
+import DownloadModal from '../components/DownloadModal';
 import { fetchAnimeDetails } from '../api';
-import { Play, Star, Calendar, Clock, Film, Layers } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Film, Layers, Download } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
 export default function Details() {
   const { id } = useParams();
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -83,7 +85,7 @@ export default function Details() {
           {/* Poster */}
           <div className="w-48 sm:w-60 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 border-2 border-zinc-800 bg-[#0d0d0d]">
             <img src={poster} alt={title} className="w-full aspect-[3/4.2] object-cover" />
-            <div className="p-3">
+            <div className="p-3 space-y-2">
               <Link
                 to={`/watch/${anime.id}`}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-sm transition shadow-lg shadow-white/10"
@@ -91,6 +93,14 @@ export default function Details() {
                 <Play className="w-4 h-4 fill-current" />
                 Watch Now
               </Link>
+              <button
+                type="button"
+                onClick={() => setDownloadModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700/80 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Download Episodes</span>
+              </button>
             </div>
           </div>
 
@@ -184,6 +194,15 @@ export default function Details() {
           </section>
         )}
       </main>
+
+      {/* Download Modal */}
+      <DownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+        anime={anime}
+        currentEpisode={1}
+        totalEpisodes={anime?.episodes || 1}
+      />
 
       <Footer />
     </div>
