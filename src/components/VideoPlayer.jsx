@@ -63,6 +63,7 @@ export default function VideoPlayer({
   const [playbackError, setPlaybackError] = useState(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
 
   // Native Control Layer States for Ad-Shielded Iframe
   const [iframeStarted, setIframeStarted] = useState(false);
@@ -124,6 +125,14 @@ export default function VideoPlayer({
     }, 650);
   }, []);
 
+  // Fast-warm iframe and immediately trigger playback to eliminate startup delay
+  const handleIframeLoad = useCallback(() => {
+    sendIframeCommand('play');
+    setTimeout(() => {
+      sendIframeCommand('play');
+    }, 250);
+  }, [sendIframeCommand]);
+
   // Reconnect and reload iframe stream at exact timestamp
   const handleIframeReconnect = useCallback(
     (targetTime) => {
@@ -165,9 +174,17 @@ export default function VideoPlayer({
       const data = e.data;
       if (!data || data.channel !== 'animeembed' || data.version !== 1) return;
 
-      if (data.event === 'play') {
+      if (data.event === 'ready') {
+        // Player mounted and ready inside iframe — eagerly initiate playback to remove all delay
+        sendIframeCommand('play');
+        if (autoplay) {
+          setIframeStarted(true);
+          setIframePlaying(true);
+        }
+      } else if (data.event === 'play') {
         setIframeStarted(true);
         setIframePlaying(true);
+        setIsBuffering(false);
         setPlaybackError(null);
         setIsReconnecting(false);
         if (errorVerificationTimerRef.current) {
@@ -176,10 +193,15 @@ export default function VideoPlayer({
         }
       } else if (data.event === 'pause') {
         setIframePlaying(false);
+        setIsBuffering(false);
+      } else if (data.event === 'buffering') {
+        setIsBuffering(true);
       } else if (data.event === 'ended') {
         setIframePlaying(false);
+        setIsBuffering(false);
         if (typeof onEnded === 'function') onEnded();
       } else if (data.event === 'progress') {
+        setIsBuffering(false);
         setIframeStarted(true);
         setPlaybackError(null);
         setIsReconnecting(false);
@@ -922,8 +944,17 @@ export default function VideoPlayer({
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
               referrerPolicy="origin"
-              credentialless="true"
+              loading="eager"
+              fetchPriority="high"
+              onLoad={handleIframeLoad}
             />
+
+            {/* Subtle Buffering Indicator */}
+            {isBuffering && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="w-10 h-10 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin shadow-lg"></div>
+              </div>
+            )}
 
             {/* Interactive Video Click Surface (Handles play/pause, seeks, fullscreen) */}
             <div

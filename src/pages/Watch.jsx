@@ -378,6 +378,12 @@ export default function Watch() {
     }
   }
 
+  // Next episode embed URL for instant zero-latency prefetch
+  const nextEpEmbedUrl = useMemo(() => {
+    if (!id || selectedEp >= totalEpisodes) return null;
+    return getEmbedUrlForServer(id, selectedEp + 1, currentResolvedServer);
+  }, [id, selectedEp, totalEpisodes, currentResolvedServer]);
+
   // Dynamic server badge for player header
   const serverLabel = useMemo(() => {
     if (activeServerId === 'auto') {
@@ -506,6 +512,11 @@ export default function Watch() {
   return (
     <div className="min-h-screen bg-black text-[#ededed]">
       <Navbar />
+
+      {/* Instant zero-delay background prefetch for next episode */}
+      {nextEpEmbedUrl && (
+        <link rel="prefetch" href={nextEpEmbedUrl} as="document" />
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Main Grid: Player on left, Episode list on right */}
