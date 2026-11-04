@@ -94,6 +94,27 @@ function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
   return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1${startParam}`;
 }
 
+// Standby silent embed URL for instant zero-latency background pre-buffering
+function getStandbyEmbedUrlForServer(animeId, epNum, serverId) {
+  if (!animeId) return '';
+  const num = Math.max(1, Number(epNum) || 1);
+  let track = 'sub';
+  let server = '1';
+
+  if (serverId === 'server-2') {
+    track = 'sub';
+    server = '2';
+  } else if (serverId === 'server-3') {
+    track = 'dub';
+    server = '1';
+  } else if (serverId === 'server-4') {
+    track = 'dub';
+    server = '2';
+  }
+
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=0&muted=1`;
+}
+
 export default function Watch() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -384,6 +405,12 @@ export default function Watch() {
     return getEmbedUrlForServer(id, selectedEp + 1, currentResolvedServer);
   }, [id, selectedEp, totalEpisodes, currentResolvedServer]);
 
+  // Next episode silent standby URL for instant zero-latency background pre-buffering
+  const nextEpStandbyUrl = useMemo(() => {
+    if (!id || selectedEp >= totalEpisodes) return '';
+    return getStandbyEmbedUrlForServer(id, selectedEp + 1, currentResolvedServer);
+  }, [id, selectedEp, totalEpisodes, currentResolvedServer]);
+
   // Dynamic server badge for player header
   const serverLabel = useMemo(() => {
     if (activeServerId === 'auto') {
@@ -527,6 +554,7 @@ export default function Watch() {
               <VideoPlayer
                 url={streamUrl}
                 iframe={iframeUrl}
+                standbyIframe={nextEpStandbyUrl}
                 streamHeaders={streamHeaders}
                 poster={anime?.bannerImage || anime?.coverImage?.extraLarge}
                 animeName={title}

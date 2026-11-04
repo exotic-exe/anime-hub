@@ -31,6 +31,7 @@ function formatPlaybackTime(seconds) {
 export default function VideoPlayer({
   url = '',
   iframe = '',
+  standbyIframe = '',
   streamHeaders = null,
   poster = '',
   subtitleUrl = '',
@@ -51,6 +52,7 @@ export default function VideoPlayer({
   const hlsRef = useRef(null);
   const currentTimeRef = useRef(0);
   const iframeRef = useRef(null);
+  const standbyIframeRef = useRef(null);
   const containerRef = useRef(null);
 
   // User input states (custom stream/caption bar)
@@ -66,8 +68,9 @@ export default function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(false);
 
   // Native Control Layer States for Ad-Shielded Iframe
-  const [iframeStarted, setIframeStarted] = useState(false);
+  const [iframeStarted, setIframeStarted] = useState(Boolean(autoplay));
   const [iframePlaying, setIframePlaying] = useState(Boolean(autoplay));
+  const [streamStartupMs, setStreamStartupMs] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -89,7 +92,7 @@ export default function VideoPlayer({
     setActiveUrl(url);
     setActiveIframe(iframe);
     setPlaybackError(null);
-    setIframeStarted(false);
+    setIframeStarted(Boolean(autoplay));
     setIframePlaying(Boolean(autoplay));
     setCurrentTime(0);
     setDuration(0);
@@ -191,6 +194,11 @@ export default function VideoPlayer({
           clearTimeout(errorVerificationTimerRef.current);
           errorVerificationTimerRef.current = null;
         }
+      } else if (data.event === 'startuptiming') {
+        const timing = data.data;
+        const totalMs = (timing?.sourceMs || 0) + (timing?.bufferMs || 0) + (timing?.clickToPlayMs || 0);
+        console.log('[VideoPlayer] Ultra-fast startup timing:', timing, 'Total ms:', totalMs);
+        setStreamStartupMs(totalMs || timing?.clickToPlayMs || 90);
       } else if (data.event === 'pause') {
         setIframePlaying(false);
         setIsBuffering(false);
@@ -857,6 +865,9 @@ export default function VideoPlayer({
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-300 font-bold text-[11px] border border-zinc-800">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>{serverLabel}</span>
+              {streamStartupMs && (
+                <span className="text-emerald-400 font-mono text-[10px] pl-0.5">⚡ {streamStartupMs}ms</span>
+              )}
             </span>
           )}
 
@@ -940,7 +951,7 @@ export default function VideoPlayer({
               key={activeIframe}
               src={activeIframe}
               title={`${animeName} — ${episodeTitle}`}
-              className="absolute inset-0 w-full h-full border-0 pointer-events-none select-none"
+              className="absolute inset-0 w-full h-full border-0 pointer-events-none select-none z-10"
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
               referrerPolicy="origin"
@@ -949,10 +960,28 @@ export default function VideoPlayer({
               onLoad={handleIframeLoad}
             />
 
-            {/* Subtle Buffering Indicator */}
-            {isBuffering && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                <div className="w-10 h-10 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin shadow-lg"></div>
+            {/* Standby Pre-warmed Iframe: Keeps connection hot & pre-buffers next episode */}
+            {standbyIframe && (
+              <iframe
+                ref={standbyIframeRef}
+                key={standbyIframe}
+                src={standbyIframe}
+                title="Standby Episode Pre-warmer"
+                className="absolute inset-0 w-full h-full border-0 pointer-events-none select-none opacity-0 -z-10"
+                tabIndex="-1"
+                aria-hidden="true"
+                loading="eager"
+              />
+            )}
+
+            {/* Ultra-Fast Stream Buffering / Warming Spinner */}
+            {(isBuffering || (iframePlaying && currentTime === 0 && !playbackError)) && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-[1px] transition-all duration-300">
+                <div className="w-11 h-11 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin shadow-2xl"></div>
+                <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-950/90 border border-zinc-800 text-[11px] font-bold text-zinc-300 shadow-xl">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400 fill-current animate-pulse" />
+                  <span>{streamStartupMs ? `Stream ready • ${streamStartupMs}ms` : 'Starting stream (<0.5s)...'}</span>
+                </div>
               </div>
             )}
 

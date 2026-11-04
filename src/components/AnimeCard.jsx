@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Star } from 'lucide-react';
+import { prewarmAnimeStream } from '../utils/streamPreloader';
 
 export default function AnimeCard({ anime }) {
   if (!anime) return null;
@@ -11,8 +12,18 @@ export default function AnimeCard({ anime }) {
   const score = anime.averageScore;
   const genres = anime.genres?.slice(0, 2) || [];
 
+  const handleWarm = () => {
+    if (anime.id) {
+      prewarmAnimeStream(anime.id, 1);
+    }
+  };
+
   return (
-    <div className="group relative bg-[#0d0d0d] border border-zinc-800/80 rounded-xl overflow-hidden shadow-lg hover:-translate-y-1 hover:border-zinc-600 transition-all duration-300">
+    <div
+      className="group relative bg-[#0d0d0d] border border-zinc-800/80 rounded-xl overflow-hidden shadow-lg hover:-translate-y-1 hover:border-zinc-600 transition-all duration-300"
+      onMouseEnter={handleWarm}
+      onTouchStart={handleWarm}
+    >
       <Link to={`/details/${anime.id}`} className="block relative aspect-[3/4.2] overflow-hidden bg-zinc-950">
         <img
           src={image}

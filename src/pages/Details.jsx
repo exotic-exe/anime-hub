@@ -5,7 +5,9 @@ import AnimeCard from '../components/AnimeCard';
 import Footer from '../components/Footer';
 import DownloadModal from '../components/DownloadModal';
 import { fetchAnimeDetails } from '../api';
-import { Play, Star, Calendar, Clock, Film, Layers, Download } from 'lucide-react';
+import { getAnimeHistory } from '../utils/history';
+import { prewarmAnimeStream, buildStandbyEmbedUrl } from '../utils/streamPreloader';
+import { Play, Star, Calendar, Clock, Film, Layers, Download, Zap } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
 export default function Details() {
@@ -26,6 +28,11 @@ export default function Details() {
           'content',
           `Discover ${animeTitle}: episodes, characters, ratings, and synopsis on ExoticHub.`
         );
+
+        // Speculatively pre-warm stream connection & cache for instant playback start
+        const saved = getAnimeHistory(id);
+        const targetEp = saved?.episode > 0 ? saved.episode : 1;
+        prewarmAnimeStream(id, targetEp);
       } catch (err) {
         console.error('Failed to load anime details', err);
       } finally {
