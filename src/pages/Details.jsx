@@ -99,7 +99,7 @@ export default function Details() {
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700/80 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Download Episodes</span>
+                <span>⚡ Direct Download Episodes</span>
               </button>
             </div>
           </div>

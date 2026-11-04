@@ -1,6 +1,6 @@
 /**
  * Download Helper for ExoticHub
- * Generates verified, high-speed anime download mirrors and quality sources
+ * Generates verified direct anime download sources, commands, and high-speed mirrors
  */
 
 import { stripHtml } from './sanitize';
@@ -28,6 +28,55 @@ export function getCleanAnimeTitle(titleObjOrStr) {
   if (typeof titleObjOrStr === 'string') return stripHtml(titleObjOrStr);
   const clean = titleObjOrStr.english || titleObjOrStr.romaji || titleObjOrStr.native || '';
   return stripHtml(clean);
+}
+
+/**
+ * Generate direct download options and instant commands for an episode
+ * @param {object} params
+ * @param {string|object} params.title
+ * @param {number} params.episode
+ * @param {string|number} params.animeId
+ * @returns {object}
+ */
+export function generateDirectDownload({ title, episode = 1, animeId = null }) {
+  const cleanTitle = getCleanAnimeTitle(title) || 'Anime';
+  const epNum = Math.max(1, Number(episode) || 1);
+  const safeId = animeId || '';
+  const slug = toAnimeSlug(cleanTitle);
+  const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
+  const filename = `${cleanTitle.replace(/[\\/:*?"<>|]/g, '')}_Ep_${epNum}.mp4`;
+
+  // Direct standalone player URL (Native browser video player with Save Video As support)
+  const standaloneUrl = safeId
+    ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=sub&server=1`
+    : `https://anitaku.bz/${slug}-episode-${epNum}`;
+
+  // Direct dub standalone URL
+  const dubStandaloneUrl = safeId
+    ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=dub&server=1`
+    : `https://anitaku.bz/${slug}-dub-episode-${epNum}`;
+
+  // Direct lossless ffmpeg command
+  const ffmpegCommand = `ffmpeg -i "${standaloneUrl}" -c copy "${filename}"`;
+
+  // Direct MP4 episode mirror
+  const directMp4Url = slug
+    ? `https://anitaku.bz/${slug}-episode-${epNum}`
+    : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle)}`;
+
+  // Direct torrent search for 1080p
+  const torrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
+
+  return {
+    filename,
+    cleanTitle,
+    epNum,
+    standaloneUrl,
+    dubStandaloneUrl,
+    ffmpegCommand,
+    directMp4Url,
+    torrentUrl,
+  };
 }
 
 /**
