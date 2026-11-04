@@ -46,36 +46,46 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
   const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
   const filename = `${cleanTitle.replace(/[\\/:*?"<>|]/g, '')}_Ep_${epNum}.mp4`;
 
-  // Direct standalone player URL (Native browser video player with Save Video As support)
-  const standaloneUrl = safeId
-    ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=sub&server=1`
-    : `https://anitaku.bz/${slug}-episode-${epNum}`;
-
-  // Direct dub standalone URL
-  const dubStandaloneUrl = safeId
-    ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=dub&server=1`
-    : `https://anitaku.bz/${slug}-dub-episode-${epNum}`;
-
-  // Direct lossless ffmpeg command
-  const ffmpegCommand = `ffmpeg -i "${standaloneUrl}" -c copy "${filename}"`;
-
-  // Direct MP4 episode mirror
-  const directMp4Url = slug
+  // Primary Direct Episode Download Portal (GogoAnime / Anitaku Fast CDN)
+  // Contains direct 1-click download buttons for 1080p, 720p, 480p, 360p MP4
+  const directDownloadUrl = slug
     ? `https://anitaku.bz/${slug}-episode-${epNum}`
     : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle)}`;
 
+  // Direct Dubbed Download Portal
+  const dubDownloadUrl = slug
+    ? `https://anitaku.bz/${slug}-dub-episode-${epNum}`
+    : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle + ' dub')}`;
+
+  // AnimePahe Direct MP4 Downloads (Compact 720p/1080p, ~150MB)
+  const paheUrl = `https://animepahe.ru/anime?q=${encodeURIComponent(cleanTitle)}`;
+
+  // Direct HLS Stream URL for Download Managers (1DM / ADM / IDM / VLC)
+  const streamUrl = safeId
+    ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=sub&server=1`
+    : directDownloadUrl;
+
+  // Direct lossless ffmpeg command
+  const ffmpegCommand = `ffmpeg -headers "Referer: https://www.animeembed.com/" -i "${streamUrl}" -c copy "${filename}"`;
+
   // Direct torrent search for 1080p
   const torrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
+  const batchTorrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' batch')}`;
 
   return {
     filename,
     cleanTitle,
     epNum,
-    standaloneUrl,
-    dubStandaloneUrl,
+    directDownloadUrl,
+    dubDownloadUrl,
+    paheUrl,
+    streamUrl,
     ffmpegCommand,
-    directMp4Url,
     torrentUrl,
+    batchTorrentUrl,
+    standaloneUrl: directDownloadUrl,
+    dubStandaloneUrl: dubDownloadUrl,
+    directMp4Url: directDownloadUrl,
   };
 }
 

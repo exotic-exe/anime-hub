@@ -288,92 +288,58 @@ export default function DownloadModal({
                     {directInfo.filename}
                   </h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Streamed from high-speed edge CDN with uncompressed audio &amp; soft subtitles.
+                    Download full high-definition video files directly with uncompressed audio &amp; soft subtitles.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => handleOpenDirect(directInfo.standaloneUrl)}
+                    onClick={() => handleOpenDirect(directInfo.directDownloadUrl)}
                     className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Direct Download (Sub)</span>
+                    <span>Download Episode {selectedEp} (MP4)</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => handleOpenDirect(directInfo.dubStandaloneUrl)}
+                    onClick={() => handleOpenDirect(directInfo.dubDownloadUrl)}
                     className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs transition flex items-center justify-center gap-2 border border-zinc-700 active:scale-95 cursor-pointer"
                   >
                     <Film className="w-4 h-4 text-emerald-400" />
-                    <span>Direct Download (Dub)</span>
+                    <span>Download Dubbed (MP4)</span>
                   </button>
                 </div>
               </div>
 
-              {/* 1-Click CLI & Download Manager Command Card */}
-              <div className="p-3.5 rounded-2xl bg-black/60 border border-zinc-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
-                    <Terminal className="w-4 h-4 text-emerald-400" />
-                    <span>1-Click Downloader Command (VLC / 1DM / FFmpeg)</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(directInfo.ffmpegCommand, 'ffmpeg')}
-                    className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-[11px] font-bold transition flex items-center gap-1 active:scale-95"
-                  >
-                    {copiedLink === 'ffmpeg' ? (
-                      <>
-                        <CheckCircle className="w-3 h-3 text-emerald-400" />
-                        <span className="text-emerald-400 font-extrabold">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>Copy Command</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800/80 font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-nowrap">
-                  {directInfo.ffmpegCommand}
-                </div>
-                <p className="text-[10px] text-zinc-500 leading-normal">
-                  Paste into terminal to download the entire uncompressed 1080p episode directly into your current folder.
-                </p>
-              </div>
-
-              {/* Direct MP4 Servers & Torrent Cards */}
+              {/* AnimePahe & Nyaa 1080p Torrent Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Direct MP4 Mirror */}
-                <div className="p-3 rounded-2xl bg-[#141414] border border-zinc-800 flex items-center justify-between gap-2">
+                {/* AnimePahe Compact MP4 */}
+                <div className="p-3.5 rounded-2xl bg-[#141414] border border-zinc-800 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-white truncate">
-                      Direct MP4 Mirror
+                      AnimePahe Fast MP4
                     </div>
                     <div className="text-[10px] text-zinc-400">
-                      Mp4Upload / Vidstreaming
+                      720p / 1080p Compact (~150MB)
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleOpenDirect(directInfo.directMp4Url)}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition flex items-center gap-1 active:scale-95"
+                    onClick={() => handleOpenDirect(directInfo.paheUrl)}
+                    className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Open MP4</span>
+                    <span>Download</span>
                   </button>
                 </div>
 
                 {/* 1080p Torrent File */}
-                <div className="p-3 rounded-2xl bg-[#141414] border border-zinc-800 flex items-center justify-between gap-2">
+                <div className="p-3.5 rounded-2xl bg-[#141414] border border-zinc-800 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-white truncate">
-                      1080p BDRip Torrent
+                      1080p Lossless Torrent
                     </div>
                     <div className="text-[10px] text-zinc-400">
                       Nyaa Dual-Audio MKV
@@ -382,12 +348,67 @@ export default function DownloadModal({
                   <button
                     type="button"
                     onClick={() => handleOpenDirect(directInfo.torrentUrl)}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition flex items-center gap-1 active:scale-95"
+                    className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Download .torrent</span>
+                    <span>.torrent</span>
                   </button>
                 </div>
+              </div>
+
+              {/* 1-Click Stream URL & CLI Downloader Command */}
+              <div className="p-3.5 rounded-2xl bg-black/60 border border-zinc-800 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
+                    <Terminal className="w-4 h-4 text-emerald-400" />
+                    <span>Download Manager Link &amp; Command (1DM / IDM / VLC / FFmpeg)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(directInfo.streamUrl, 'stream')}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-[11px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                      title="Copy stream link for 1DM (Android) or IDM (PC)"
+                    >
+                      {copiedLink === 'stream' ? (
+                        <>
+                          <CheckCircle className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 font-extrabold">Copied Link!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy 1DM/IDM Link</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(directInfo.ffmpegCommand, 'ffmpeg')}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-[11px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                      title="Copy lossless terminal download command"
+                    >
+                      {copiedLink === 'ffmpeg' ? (
+                        <>
+                          <CheckCircle className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 font-extrabold">Copied Command!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Command</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800/80 font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-nowrap">
+                  {directInfo.ffmpegCommand}
+                </div>
+                <p className="text-[10px] text-zinc-500 leading-normal">
+                  Paste into 1DM (Android), IDM (Windows), or your terminal to download the full 1080p episode directly to your device storage.
+                </p>
               </div>
             </div>
           )}
@@ -495,8 +516,8 @@ export default function DownloadModal({
                     1
                   </span>
                   <p>
-                    <strong className="text-zinc-200">1-Click Direct Download:</strong> Click{' '}
-                    <span className="text-emerald-400 font-semibold">Direct Download</span> above. It launches the direct video player. You can then press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Ctrl + S</kbd> or <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Cmd + S</kbd> to save the entire episode directly to your device storage.
+                    <strong className="text-zinc-200">Direct Episode Downloads:</strong> Click{' '}
+                    <span className="text-emerald-400 font-semibold">Download Episode (MP4)</span> or <span className="text-white font-semibold">AnimePahe</span> to select your preferred video resolution (1080p, 720p, 480p) and download the episode file directly to your device.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -504,7 +525,7 @@ export default function DownloadModal({
                     2
                   </span>
                   <p>
-                    <strong className="text-zinc-200">Mobile (Android / iOS):</strong> Open the link in Chrome/Safari, tap the three dots or video controls, and select <span className="text-white font-semibold">Download Video</span>, or share the link with <span className="text-white font-semibold">1DM (Android)</span>.
+                    <strong className="text-zinc-200">Mobile Fast Downloader (1DM / ADM):</strong> Tap <span className="text-white font-semibold">Copy 1DM/IDM Link</span> and paste into 1DM (Android) to download the high-speed multi-threaded video stream directly into your gallery.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -512,7 +533,7 @@ export default function DownloadModal({
                     3
                   </span>
                   <p>
-                    <strong className="text-zinc-200">Fast FFmpeg Lossless Save:</strong> Click <span className="text-white font-semibold">Copy Command</span> above and run it in your terminal. It downloads and multiplexes the full 1080p stream in seconds without quality degradation.
+                    <strong className="text-zinc-200">Lossless 1080p Torrents &amp; FFmpeg:</strong> Click <span className="text-amber-400 font-semibold">.torrent</span> to grab the pristine Blu-Ray release with soft subtitles, or use the 1-click FFmpeg command in your terminal.
                   </p>
                 </div>
               </div>
