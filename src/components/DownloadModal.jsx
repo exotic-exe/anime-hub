@@ -123,7 +123,7 @@ export default function DownloadModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -170,7 +170,7 @@ export default function DownloadModal({
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>⚡ Direct Download</span>
+            <span>Direct Download</span>
           </button>
           <button
             type="button"
@@ -182,7 +182,7 @@ export default function DownloadModal({
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>🌐 Storage Mirrors &amp; Batches</span>
+            <span>Storage Mirrors &amp; Batches</span>
           </button>
         </div>
 
@@ -268,12 +268,12 @@ export default function DownloadModal({
 
           {/* TAB 1: DIRECT DOWNLOAD */}
           {activeTab === 'direct' && (
-            <div className="space-y-3.5 animate-in fade-in duration-150">
+            <div className="space-y-3.5">
               {/* Primary Direct Download Hero Card */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-zinc-900 to-zinc-900 border border-emerald-500/40 space-y-3 shadow-lg">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
                     <span className="text-xs font-black text-white uppercase tracking-wider">
                       Instant Direct Stream &amp; Download
                     </span>
@@ -299,7 +299,7 @@ export default function DownloadModal({
                     className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>⚡ Direct Download (Sub)</span>
+                    <span>Direct Download (Sub)</span>
                   </button>
 
                   <button
@@ -394,7 +394,7 @@ export default function DownloadModal({
 
           {/* TAB 2: ALL MIRRORS & BATCHES */}
           {activeTab === 'mirrors' && (
-            <div className="space-y-2.5 animate-in fade-in duration-150">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -489,14 +489,14 @@ export default function DownloadModal({
             </button>
 
             {showTips && (
-              <div className="p-3.5 pt-0 text-xs text-zinc-400 space-y-2 border-t border-zinc-800/60 leading-relaxed animate-in fade-in">
+              <div className="p-3.5 pt-0 text-xs text-zinc-400 space-y-2 border-t border-zinc-800/60 leading-relaxed">
                 <div className="flex gap-2">
                   <span className="w-5 h-5 rounded-full bg-zinc-800 text-white font-bold flex items-center justify-center flex-shrink-0 text-[10px]">
                     1
                   </span>
                   <p>
                     <strong className="text-zinc-200">1-Click Direct Download:</strong> Click{' '}
-                    <span className="text-emerald-400 font-semibold">⚡ Direct Download</span> above. It launches the direct video player. You can then press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Ctrl + S</kbd> or <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Cmd + S</kbd> to save the entire episode directly to your device storage.
+                    <span className="text-emerald-400 font-semibold">Direct Download</span> above. It launches the direct video player. You can then press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Ctrl + S</kbd> or <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-white">Cmd + S</kbd> to save the entire episode directly to your device storage.
                   </p>
                 </div>
                 <div className="flex gap-2">

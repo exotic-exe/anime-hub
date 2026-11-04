@@ -70,18 +70,15 @@ export default function VideoPlayer({
   // Native Control Layer States for Ad-Shielded Iframe
   const [iframeStarted, setIframeStarted] = useState(Boolean(autoplay));
   const [iframePlaying, setIframePlaying] = useState(Boolean(autoplay));
-  const [streamStartupMs, setStreamStartupMs] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
-  const [centerFeedback, setCenterFeedback] = useState(null);
 
   // Interaction refs
   const isDraggingSeekRef = useRef(false);
   const activityTimerRef = useRef(null);
-  const feedbackTimerRef = useRef(null);
   const lastClickTimeRef = useRef(0);
   const clickTimeoutRef = useRef(null);
   const lastProgressTimeRef = useRef(Date.now());
@@ -119,14 +116,8 @@ export default function VideoPlayer({
     } catch (_) {}
   }, []);
 
-  // Show transient center feedback badge (Play, Pause, +10s, -10s, Volume, etc.)
-  const showFeedback = useCallback((icon, text = '') => {
-    setCenterFeedback({ icon, text });
-    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-    feedbackTimerRef.current = setTimeout(() => {
-      setCenterFeedback(null);
-    }, 650);
-  }, []);
+  // Silent feedback without visual overlays or animations
+  const showFeedback = useCallback(() => {}, []);
 
   // Fast-warm iframe and immediately trigger playback to eliminate startup delay
   const handleIframeLoad = useCallback(() => {
@@ -195,10 +186,7 @@ export default function VideoPlayer({
           errorVerificationTimerRef.current = null;
         }
       } else if (data.event === 'startuptiming') {
-        const timing = data.data;
-        const totalMs = (timing?.sourceMs || 0) + (timing?.bufferMs || 0) + (timing?.clickToPlayMs || 0);
-        console.log('[VideoPlayer] Ultra-fast startup timing:', timing, 'Total ms:', totalMs);
-        setStreamStartupMs(totalMs || timing?.clickToPlayMs || 90);
+        // Startup timing received silently
       } else if (data.event === 'pause') {
         setIframePlaying(false);
         setIsBuffering(false);
@@ -734,7 +722,6 @@ export default function VideoPlayer({
 
       if (autoskip && art.video && art.video.currentTime < 85) {
         art.video.currentTime = 85;
-        art.notice.show = 'Intro skipped automatically';
       }
     });
 
@@ -758,7 +745,6 @@ export default function VideoPlayer({
       click: function () {
         if (art.video) art.video.currentTime = 90;
         this.style.display = 'none';
-        art.notice.show = 'Intro skipped';
       },
     });
 
@@ -768,7 +754,6 @@ export default function VideoPlayer({
       style: { position: 'absolute', bottom: '70px', right: '20px' },
       click: function () {
         if (typeof onEnded === 'function') onEnded();
-        art.notice.show = 'Skipping to next episode...';
       },
     });
 
@@ -863,11 +848,8 @@ export default function VideoPlayer({
         <div className="flex items-center gap-2 flex-shrink-0">
           {serverLabel && (
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-300 font-bold text-[11px] border border-zinc-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span>{serverLabel}</span>
-              {streamStartupMs && (
-                <span className="text-emerald-400 font-mono text-[10px] pl-0.5">⚡ {streamStartupMs}ms</span>
-              )}
             </span>
           )}
 
@@ -932,7 +914,7 @@ export default function VideoPlayer({
       >
         {/* Floating Auto-Switch Notice Toast */}
         {autoSwitchNotice && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/90 border border-zinc-700 px-4 py-2 rounded-xl text-white text-xs font-bold shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/90 border border-zinc-700 px-4 py-2 rounded-xl text-white text-xs font-bold shadow-2xl backdrop-blur-md">
             <span>{autoSwitchNotice}</span>
           </div>
         )}
@@ -974,48 +956,18 @@ export default function VideoPlayer({
               />
             )}
 
-            {/* Ultra-Fast Stream Buffering / Warming Spinner */}
-            {(isBuffering || (iframePlaying && currentTime === 0 && !playbackError)) && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-[1px] transition-all duration-300">
-                <div className="w-11 h-11 border-2 border-white/20 border-t-emerald-400 rounded-full animate-spin shadow-2xl"></div>
-                <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-950/90 border border-zinc-800 text-[11px] font-bold text-zinc-300 shadow-xl">
-                  <Zap className="w-3.5 h-3.5 text-emerald-400 fill-current animate-pulse" />
-                  <span>{streamStartupMs ? `Stream ready • ${streamStartupMs}ms` : 'Starting stream (<0.5s)...'}</span>
-                </div>
-              </div>
-            )}
-
             {/* Interactive Video Click Surface (Handles play/pause, seeks, fullscreen) */}
             <div
               className="absolute inset-0 z-10 pointer-events-auto cursor-pointer"
               onClick={handleScreenClick}
               onMouseMove={handleUserActivity}
               onTouchStart={handleUserActivity}
-            >
-              {/* Transient Center Feedback Badge */}
-              {centerFeedback && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                  <div className="flex flex-col items-center justify-center px-5 py-4 rounded-2xl bg-black/85 backdrop-blur-md text-white border border-white/20 shadow-2xl animate-out fade-out zoom-out-95 duration-500">
-                    {centerFeedback.icon === 'play' && <Play className="w-10 h-10 fill-white" />}
-                    {centerFeedback.icon === 'pause' && <Pause className="w-10 h-10 fill-white" />}
-                    {centerFeedback.icon === 'forward' && <RotateCw className="w-10 h-10" />}
-                    {centerFeedback.icon === 'backward' && <RotateCcw className="w-10 h-10" />}
-                    {centerFeedback.icon === 'volume' && <Volume2 className="w-10 h-10" />}
-                    {centerFeedback.icon === 'mute' && <VolumeX className="w-10 h-10" />}
-                    {centerFeedback.text && (
-                      <span className="mt-2 text-xs font-black tracking-wider uppercase">
-                        {centerFeedback.text}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            />
 
             {/* Ad-Free Direct Play Overlay before playback starts */}
             {!iframeStarted && (
               <div
-                className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center p-6 text-center select-none animate-in fade-in cursor-pointer"
+                className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center p-6 text-center select-none cursor-pointer"
                 onClick={handleAdFreePlay}
               >
                 {poster && (
@@ -1270,7 +1222,7 @@ export default function VideoPlayer({
             )}
             <div className="relative z-10 text-center space-y-3 px-4">
               <div className="w-12 h-12 mx-auto rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full" />
               </div>
               <p className="text-sm font-bold text-zinc-200">
                 Loading stream source for {episodeTitle}...
@@ -1282,7 +1234,7 @@ export default function VideoPlayer({
 
         {/* Universal In-Player Error Recovery Overlay (Both Iframe & Direct Stream) */}
         {playbackError && (
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 animate-in fade-in select-none">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-40 select-none">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-3">
               <AlertCircle className="w-6 h-6" />
             </div>
@@ -1307,7 +1259,7 @@ export default function VideoPlayer({
                 disabled={isReconnecting}
                 className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-extrabold text-xs transition shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
+                <RefreshCw className="w-3.5 h-3.5" />
                 <span>
                   {isReconnecting
                     ? 'Reconnecting...'

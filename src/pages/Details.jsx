@@ -7,7 +7,7 @@ import DownloadModal from '../components/DownloadModal';
 import { fetchAnimeDetails } from '../api';
 import { getAnimeHistory } from '../utils/history';
 import { prewarmAnimeStream, buildStandbyEmbedUrl } from '../utils/streamPreloader';
-import { Play, Star, Calendar, Clock, Film, Layers, Download, Zap } from 'lucide-react';
+import { Play, Star, Calendar, Clock, Film, Layers, Download } from 'lucide-react';
 import { stripHtml } from '../utils/sanitize';
 
 export default function Details() {
@@ -47,7 +47,7 @@ export default function Details() {
       <div className="min-h-screen bg-black text-[#ededed]">
         <Navbar />
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full"></div>
         </div>
       </div>
     );
@@ -106,7 +106,7 @@ export default function Details() {
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700/80 font-bold text-xs transition cursor-pointer active:scale-95 shadow-sm"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span>⚡ Direct Download Episodes</span>
+                <span>Direct Download Episodes</span>
               </button>
             </div>
           </div>

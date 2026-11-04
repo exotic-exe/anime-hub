@@ -573,7 +573,7 @@ export default function Watch() {
               />
               {streamLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-2xl z-10 pointer-events-none">
-                  <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full"></div>
                 </div>
               )}
             </div>
@@ -589,7 +589,7 @@ export default function Watch() {
                     <div className="text-xs font-black text-white flex items-center gap-2">
                       <span>Server Auto-Switcher</span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                         Auto-Failover Active
                       </span>
                     </div>
@@ -677,7 +677,7 @@ export default function Watch() {
 
             {/* Resumed from watch history notification */}
             {resumedFromHistory && (
-              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold shadow-sm backdrop-blur-sm animate-in fade-in">
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold shadow-sm backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <HistoryIcon className="w-4 h-4 text-zinc-300" />
                   <span>Resumed where you left off at Episode {selectedEp}</span>
@@ -913,7 +913,7 @@ export default function Watch() {
             <div className="flex-1 overflow-y-auto pr-1 custom-scroll">
               {loading && !anime ? (
                 <div className="flex flex-col items-center justify-center py-16 space-y-3 text-zinc-500">
-                  <div className="w-6 h-6 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-6 h-6 border-2 border-zinc-700 border-t-white rounded-full"></div>
                   <span className="text-xs font-semibold">Loading episodes...</span>
                 </div>
               ) : displayedEpisodes.length === 0 ? (
