@@ -78,8 +78,8 @@ export default function VideoPlayer({
   const feedbackTimerRef = useRef(null);
   const lastClickTimeRef = useRef(0);
   const clickTimeoutRef = useRef(null);
-  const autoRetryCountRef = useRef(0);
-  const lastErrorTimeRef = useRef(0);
+  const lastProgressTimeRef = useRef(Date.now());
+  const errorVerificationTimerRef = useRef(null);
 
   // Sync state when props change
   useEffect(() => {
@@ -141,7 +141,6 @@ export default function VideoPlayer({
             const u = new URL(iframe, window.location.origin);
             u.searchParams.set('start', String(Math.floor(resume)));
             u.searchParams.set('autoPlay', '1');
-            u.searchParams.set('autoSkip', '0');
             u.searchParams.set('_t', String(Date.now()));
             setActiveIframe(u.toString());
           } catch (_) {
@@ -167,7 +166,10 @@ export default function VideoPlayer({
         setIframePlaying(true);
         setPlaybackError(null);
         setIsReconnecting(false);
-        autoRetryCountRef.current = 0;
+        if (errorVerificationTimerRef.current) {
+          clearTimeout(errorVerificationTimerRef.current);
+          errorVerificationTimerRef.current = null;
+        }
       } else if (data.event === 'pause') {
         setIframePlaying(false);
       } else if (data.event === 'ended') {
@@ -177,7 +179,14 @@ export default function VideoPlayer({
         setIframeStarted(true);
         setPlaybackError(null);
         setIsReconnecting(false);
-        autoRetryCountRef.current = 0;
+        lastProgressTimeRef.current = Date.now();
+
+        // If an error verification timer was active, cancel it because playback is advancing smoothly!
+        if (errorVerificationTimerRef.current) {
+          clearTimeout(errorVerificationTimerRef.current);
+          errorVerificationTimerRef.current = null;
+        }
+
         if (typeof data.data?.currentTime === 'number') {
           if (!isDraggingSeekRef.current) {
             setCurrentTime(data.data.currentTime);
@@ -189,43 +198,36 @@ export default function VideoPlayer({
         }
       } else if (data.event === 'error') {
         const errorMsg = data.data?.message || 'Playback interrupted';
-        console.warn('[VideoPlayer] Upstream playback error:', errorMsg);
         const time = currentTimeRef.current || currentTime || 0;
+        console.warn('[VideoPlayer] Transient player status:', errorMsg, 'at', time);
 
-        const now = Date.now();
-        if (now - lastErrorTimeRef.current > 1200) {
-          lastErrorTimeRef.current = now;
-
-          if (autoRetryCountRef.current < 2) {
-            autoRetryCountRef.current += 1;
-            setIsReconnecting(true);
-            showFeedback('backward', `Auto-reconnecting at ${formatPlaybackTime(time)}...`);
-            setTimeout(() => {
-              handleIframeReconnect(time);
-            }, 600);
-          } else {
-            // Consecutive errors on this server mirror: failover to next mirror
-            if (onNextServer) {
-              autoRetryCountRef.current = 0;
-              setIsReconnecting(true);
-              showFeedback('forward', 'Auto-switching to mirror server...');
-              setTimeout(() => {
-                onNextServer(time);
-              }, 600);
-            } else {
-              setPlaybackError({
-                message: errorMsg,
-                time,
-              });
-              setIsReconnecting(false);
-            }
+        // Do NOT immediately unmount/reload the iframe (which causes auto-skip intro to glitch and reload).
+        // Instead, verify if progress has genuinely stopped for at least 3.5 seconds.
+        if (errorVerificationTimerRef.current) clearTimeout(errorVerificationTimerRef.current);
+        errorVerificationTimerRef.current = setTimeout(() => {
+          const timeSinceProgress = Date.now() - lastProgressTimeRef.current;
+          // If no progress event arrived for >3000ms, the stream is truly stalled
+          if (timeSinceProgress > 3000) {
+            setPlaybackError({
+              message: errorMsg,
+              time: currentTimeRef.current || currentTime || 0,
+            });
+            setIsReconnecting(false);
           }
-        }
+          errorVerificationTimerRef.current = null;
+        }, 3500);
       }
     }
+
     window.addEventListener('message', handleIframeMessage);
-    return () => window.removeEventListener('message', handleIframeMessage);
-  }, [onEnded, onReloadStream, onNextServer, handleIframeReconnect, showFeedback, currentTime]);
+    return () => {
+      window.removeEventListener('message', handleIframeMessage);
+      if (errorVerificationTimerRef.current) {
+        clearTimeout(errorVerificationTimerRef.current);
+        errorVerificationTimerRef.current = null;
+      }
+    };
+  }, [onEnded, onReloadStream, onNextServer, handleIframeReconnect, currentTime]);
 
   // Smooth continuous progress increment while playing (resynced on every progress event)
   useEffect(() => {
@@ -333,10 +335,10 @@ export default function VideoPlayer({
     [isMuted, sendIframeCommand, showFeedback]
   );
 
-  // Skip intro helper (smoothly advances beyond intro while avoiding keyframe stalls)
+  // Skip intro helper
   const handleSkipIntro = useCallback(() => {
     const current = currentTimeRef.current || currentTime || 0;
-    const target = Math.max(90, current + 85);
+    const target = current < 30 ? 85 : current + 85;
     handleSeekTo(target);
     showFeedback('forward', 'Intro Skipped');
   }, [handleSeekTo, showFeedback, currentTime]);

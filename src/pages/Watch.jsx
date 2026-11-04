@@ -68,7 +68,7 @@ const SERVERS = [
   },
 ];
 
-// Helper to generate clean, high-speed direct CDN embed URLs with autoPlay and autoSkip=0
+// Helper to generate clean, high-speed direct CDN embed URLs with autoPlay and auto-skip
 function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
   if (!animeId) return '';
   const num = Math.max(1, Number(epNum) || 1);
@@ -89,8 +89,7 @@ function getEmbedUrlForServer(animeId, epNum, serverId, startTime = 0) {
     server = '2';
   }
 
-  // Pass autoSkip=0 to prevent animeembed internal script from violently jumping currentTime and crashing HLS
-  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1&autoSkip=0${startParam}`;
+  return `https://www.animeembed.com/embed/ani/${animeId}/${num}?track=${track}&server=${server}&autoPlay=1${startParam}`;
 }
 
 export default function Watch() {
