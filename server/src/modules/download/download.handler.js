@@ -71,7 +71,7 @@ export default async function downloadHandler(c) {
       }
     }
   } catch (err) {
-    // Non-fatal, fallback to direct links
+    // Non-fatal
   }
 
   // 2. Fetch SubsPlease API for exact episode magnet releases
@@ -108,4 +108,61 @@ export default async function downloadHandler(c) {
   });
 
   return results;
+}
+
+/**
+ * 1-Click Direct File Download Handler
+ * Streams the .torrent file directly to the client with attachment header
+ */
+export async function downloadFileHandler(c) {
+  const title = c.req.query('title') || '';
+  const episode = c.req.query('episode') || '1';
+  const epNum = parseInt(episode, 10) || 1;
+  const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
+  const cleanTitle = (title || '').replace(/[\\/:*?"<>|]/g, '').trim() || 'Anime';
+  const filename = `${cleanTitle.replace(/\s+/g, '_')}_Ep_${epNum}.torrent`;
+
+  try {
+    const cacheKey = `${cleanTitle.toLowerCase()}:${epNum}`;
+    let torrentUrl = '';
+    const cached = cache.get(cacheKey);
+    if (cached?.data?.torrents?.[0]?.torrentUrl) {
+      torrentUrl = cached.data.torrents[0].torrentUrl;
+    } else {
+      const nyaaUrl = `https://nyaa.si/?page=rss&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
+      const res = await fetch(nyaaUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) {
+        const xml = await res.text();
+        const linkMatch = xml.match(/<link>(https:\/\/nyaa\.si\/download\/\d+\.torrent)<\/link>/);
+        if (linkMatch) {
+          torrentUrl = linkMatch[1];
+        }
+      }
+    }
+
+    if (torrentUrl) {
+      const torrentRes = await fetch(torrentUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (torrentRes.ok) {
+        const buf = await torrentRes.arrayBuffer();
+        c.header('Content-Type', 'application/x-bittorrent');
+        c.header('Content-Disposition', `attachment; filename="${filename}"`);
+        c.header('Cache-Control', 'public, max-age=86400');
+        return c.body(buf);
+      }
+    }
+  } catch (err) {
+    // Non-fatal
+  }
+
+  // Fallback to Nyaa search directly
+  return c.redirect(
+    `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`,
+    302
+  );
 }

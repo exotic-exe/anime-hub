@@ -31,6 +31,18 @@ export function getCleanAnimeTitle(titleObjOrStr) {
 }
 
 /**
+ * Get direct 1-click download file URL
+ * @param {string|object} title
+ * @param {number} episode
+ * @returns {string}
+ */
+export function getOneClickDownloadUrl(title, episode = 1) {
+  const cleanTitle = getCleanAnimeTitle(title) || 'Anime';
+  const epNum = Math.max(1, Number(episode) || 1);
+  return `/api/v1/download/file?title=${encodeURIComponent(cleanTitle)}&episode=${epNum}`;
+}
+
+/**
  * Generate direct download options and instant commands for an episode
  * @param {object} params
  * @param {string|object} params.title
@@ -44,6 +56,9 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
   const safeId = animeId || '';
   const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
   const filename = `${cleanTitle.replace(/[\\/:*?"<>|]/g, '')}_Ep_${epNum}.mp4`;
+
+  // 1-Click native browser attachment download
+  const oneClickDownloadUrl = getOneClickDownloadUrl(cleanTitle, epNum);
 
   // Primary direct torrent search for 1080p
   const torrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
@@ -67,15 +82,16 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
     filename,
     cleanTitle,
     epNum,
+    oneClickDownloadUrl,
     torrentUrl,
     batchTorrentUrl,
     kayoUrl,
     paheUrl,
     streamUrl,
     ffmpegCommand,
-    directDownloadUrl: torrentUrl,
+    directDownloadUrl: oneClickDownloadUrl,
     dubDownloadUrl: kayoUrl,
-    standaloneUrl: torrentUrl,
+    standaloneUrl: oneClickDownloadUrl,
     dubStandaloneUrl: kayoUrl,
     directMp4Url: paheUrl,
   };

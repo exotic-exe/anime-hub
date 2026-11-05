@@ -19,6 +19,7 @@ import * as episodes from '../modules/episodes/index.js';
 import * as servers from '../modules/servers/index.js';
 import * as stream from '../modules/stream/index.js';
 import * as download from '../modules/download/index.js';
+import { downloadFileHandler } from '../modules/download/download.handler.js';
 import * as monthlySchedule from '../modules/schedule/monthlySchedule/index.js';
 import * as nextEpSchedule from '../modules/schedule/nextEpSchedule/index.js';
 import * as meta from '../modules/meta/index.js';
@@ -54,5 +55,7 @@ const routes = [
 routes.forEach((route) => {
   router.openapi(route.schema, withTryCatch(route.handler));
 });
+
+router.get('/download/file', downloadFileHandler);
 
 export default router;

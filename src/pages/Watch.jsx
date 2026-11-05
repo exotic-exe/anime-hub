@@ -399,6 +399,21 @@ export default function Watch() {
     }
   }
 
+  // 1-Click Direct Episode Download
+  function handleDirect1ClickDownload() {
+    markInternalNavigation();
+    const titleStr = anime?.title?.english || anime?.title?.romaji || anime?.title?.native || 'Anime';
+    const cleanTitle = titleStr.replace(/[\\/:*?"<>|]/g, '').trim();
+    const url = `/api/v1/download/file?title=${encodeURIComponent(cleanTitle)}&episode=${selectedEp}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('download', `${cleanTitle.replace(/\s+/g, '_')}_Ep_${selectedEp}.torrent`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showNotice(`Downloading Episode ${selectedEp}...`);
+  }
+
   // Next episode embed URL for instant zero-latency prefetch
   const nextEpEmbedUrl = useMemo(() => {
     if (!id || selectedEp >= totalEpisodes) return null;
@@ -619,15 +634,23 @@ export default function Watch() {
                   </button>
                   <button
                     type="button"
+                    onClick={handleDirect1ClickDownload}
+                    title={`1-Click Download Episode ${selectedEp}`}
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Ep {selectedEp}</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       markInternalNavigation();
                       setDownloadModalOpen(true);
                     }}
-                    title="Direct Download episode with verified mirrors & multi-quality"
-                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                    title="More download options & qualities"
+                    className="px-2 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-bold transition active:scale-95 cursor-pointer"
                   >
-                    <Download className="w-3 h-3" />
-                    <span>Direct Download</span>
+                    <span>More</span>
                   </button>
                 </div>
               </div>
@@ -714,15 +737,13 @@ export default function Watch() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    markInternalNavigation();
-                    setDownloadModalOpen(true);
-                  }}
-                  className="px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-bold transition flex items-center gap-1 active:scale-95"
-                  title={`Download Episode ${selectedEp}`}
+                  onClick={handleDirect1ClickDownload}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 hover:text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                  title={`1-Click Download Episode ${selectedEp}`}
                 >
-                  <Download className="w-3 h-3 text-emerald-400" />
-                  <span className="hidden sm:inline">Direct Download Ep {selectedEp}</span>
+                  <Download className="w-3 h-3" />
+                  <span className="hidden sm:inline">1-Click Download</span>
+                  <span className="sm:hidden">Download</span>
                 </button>
               </div>
 
