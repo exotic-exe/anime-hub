@@ -627,7 +627,7 @@ export async function searchAnime(keyword, page = 1, perPage = 24) {
     query ($search: String, $page: Int, $perPage: Int) {
       Page(page: $page, perPage: $perPage) {
         pageInfo { hasNextPage }
-        media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+        media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
           ${MEDIA_FIELDS}
         }
       }
@@ -635,6 +635,28 @@ export async function searchAnime(keyword, page = 1, perPage = 24) {
   `;
   const data = await fetchGraphQL(query, { search: cleanKeyword, page, perPage });
   return data?.Page?.media || [];
+}
+
+export async function searchAnimeWithPagination(keyword, page = 1, perPage = 24) {
+  const cleanKeyword = sanitizeInput(keyword);
+  if (!cleanKeyword) return { results: [], hasNextPage: false, total: 0 };
+
+  const query = `
+    query ($search: String, $page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage total currentPage }
+        media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await fetchGraphQL(query, { search: cleanKeyword, page, perPage });
+  return {
+    results: data?.Page?.media || [],
+    hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+    total: data?.Page?.pageInfo?.total || 0,
+  };
 }
 
 /**

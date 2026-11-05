@@ -400,7 +400,7 @@ export default function Catalog() {
         {/* Anime Cards Grid */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-2 border-zinc-700 border-t-white rounded-full"></div>
             <p className="text-xs font-bold text-zinc-400">Loading anime catalog...</p>
           </div>
         ) : animeList.length > 0 ? (

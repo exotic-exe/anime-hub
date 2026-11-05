@@ -162,7 +162,7 @@ export default function Home() {
           {/* Genre Cards Grid */}
           {genreLoading && genreAnime.length === 0 ? (
             <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full"></div>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -191,7 +191,7 @@ export default function Home() {
 
           {loading && data.trending.length === 0 ? (
             <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full"></div>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">

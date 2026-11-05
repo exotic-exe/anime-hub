@@ -175,7 +175,7 @@ export const htmlAsString = `
 
       <body>
           <header>
-              <h1>📺 hianime-API</h1>
+              <h1> hianime-API</h1>
               <p>
                   An unofficial REST API that scrapes anime data from
                   <strong>hianimez.to</strong>. Built for developers who want
@@ -195,13 +195,13 @@ export const htmlAsString = `
           <main>
               <section class="grid">
                   <div class="card">
-                      <h2>🚀 Base URL</h2>
+                      <h2> Base URL</h2>
                       <p>All endpoints are served under:</p>
                       <p><code>/api/v1</code></p>
                   </div>
 
                   <div class="card">
-                      <h2>📦 Response Format</h2>
+                      <h2> Response Format</h2>
                       <p>Every response follows a standard structure:</p>
                       <pre><code>{
       "success": true,
@@ -210,7 +210,7 @@ export const htmlAsString = `
                   </div>
 
                   <div class="card">
-                      <h2>⚠️ Disclaimer</h2>
+                      <h2>️ Disclaimer</h2>
                       <p>
                           This API is not affiliated with hianimez.to. All content
                           belongs to its original owners.
@@ -223,16 +223,16 @@ export const htmlAsString = `
               </section>
 
               <section class="section">
-                  <h2>📚 Core Endpoints</h2>
+                  <h2> Core Endpoints</h2>
                   <div class="grid">
                       <div class="card">
-                          <h2>🏠 Home</h2>
+                          <h2> Home</h2>
                           <p><code>GET /home</code></p>
                           <p>Trending, spotlight, top airing, latest episodes.</p>
                       </div>
 
                       <div class="card">
-                          <h2>🎬 Anime Details</h2>
+                          <h2> Anime Details</h2>
                           <p><code>GET /anime/{animeId}</code></p>
                           <p>examples</p>
                           <p><code>one-piece-100</code></p>
@@ -242,7 +242,7 @@ export const htmlAsString = `
                       </div>
 
                       <div class="card">
-                          <h2>📃 Anime List</h2>
+                          <h2> Anime List</h2>
                           <p><code>GET /{query}</code></p>
                           <p>example</p>
                           <p><code>
@@ -291,23 +291,23 @@ export const htmlAsString = `
                       </div>
 
                       <div class="card">
-                          <h2>🔤 AZ List</h2>
+                          <h2> AZ List</h2>
                           <p><code>GET /az-list/{letter}</code></p>
                           <p>AZ List</p>
                       </div>
                       <div class="card">
-                          <h2> 👊 genre</h2>
+                          <h2>  genre</h2>
                           <p><code>GET /genre/{genre}</code></p>
                           <p>anime List By Genre.</p>
                       </div>
                       <div class="card">
-                          <h2>🔍 Search</h2>
+                          <h2> Search</h2>
                           <p><code>GET /search?keyword=naruto</code></p>
                           <p>Search anime with pagination & suggestions.</p>
                       </div>
 
                       <div class="card">
-                          <h2>📺 Episodes</h2>
+                          <h2> Episodes</h2>
                           <p><code>GET /episodes/{animeId}</code></p>
                           <p>Episode list for a specific anime.</p>
                       </div>
@@ -326,7 +326,7 @@ export const htmlAsString = `
               </section>
 
               <section class="section">
-                  <h2>🔧 Quick Start</h2>
+                  <h2> Quick Start</h2>
                   <div class="card">
                       <pre><code>git clone https://github.com/yahyaMomin/hianime-API.git
     cd hianime-API

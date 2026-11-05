@@ -125,7 +125,7 @@ export default function Navbar() {
 
             {/* Dropdown Floating Panel */}
             {genreOpen && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-[#0d0d0d] border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 backdrop-blur-xl animate-in fade-in slide-in-from-top-1">
+              <div className="absolute right-0 top-full mt-2 w-72 bg-[#0d0d0d] border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 backdrop-blur-xl">
                 <div className="text-[10px] font-black uppercase text-zinc-400 tracking-wider px-2 pb-2 border-b border-zinc-800 mb-2 flex items-center justify-between">
                   <span>Select Genre</span>
                   <span className="text-[9px] text-zinc-400 font-bold">15 Genres</span>
