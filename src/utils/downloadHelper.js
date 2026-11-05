@@ -42,20 +42,15 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
   const cleanTitle = getCleanAnimeTitle(title) || 'Anime';
   const epNum = Math.max(1, Number(episode) || 1);
   const safeId = animeId || '';
-  const slug = toAnimeSlug(cleanTitle);
   const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
   const filename = `${cleanTitle.replace(/[\\/:*?"<>|]/g, '')}_Ep_${epNum}.mp4`;
 
-  // Primary Direct Episode Download Portal (GogoAnime / Anitaku Fast CDN)
-  // Contains direct 1-click download buttons for 1080p, 720p, 480p, 360p MP4
-  const directDownloadUrl = slug
-    ? `https://anitaku.bz/${slug}-episode-${epNum}`
-    : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle)}`;
+  // Primary direct torrent search for 1080p
+  const torrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
+  const batchTorrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' batch')}`;
 
-  // Direct Dubbed Download Portal
-  const dubDownloadUrl = slug
-    ? `https://anitaku.bz/${slug}-dub-episode-${epNum}`
-    : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle + ' dub')}`;
+  // Direct Cloud Storage Downloads (Google Drive & Mega via Kayoanime)
+  const kayoUrl = `https://kayoanime.com/?s=${encodeURIComponent(cleanTitle)}`;
 
   // AnimePahe Direct MP4 Downloads (Compact 720p/1080p, ~150MB)
   const paheUrl = `https://animepahe.ru/anime?q=${encodeURIComponent(cleanTitle)}`;
@@ -63,30 +58,49 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
   // Direct HLS Stream URL for Download Managers (1DM / ADM / IDM / VLC)
   const streamUrl = safeId
     ? `https://www.animeembed.com/embed/ani/${safeId}/${epNum}?track=sub&server=1`
-    : directDownloadUrl;
+    : torrentUrl;
 
   // Direct lossless ffmpeg command
   const ffmpegCommand = `ffmpeg -headers "Referer: https://www.animeembed.com/" -i "${streamUrl}" -c copy "${filename}"`;
-
-  // Direct torrent search for 1080p
-  const torrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`;
-  const batchTorrentUrl = `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' batch')}`;
 
   return {
     filename,
     cleanTitle,
     epNum,
-    directDownloadUrl,
-    dubDownloadUrl,
+    torrentUrl,
+    batchTorrentUrl,
+    kayoUrl,
     paheUrl,
     streamUrl,
     ffmpegCommand,
-    torrentUrl,
-    batchTorrentUrl,
-    standaloneUrl: directDownloadUrl,
-    dubStandaloneUrl: dubDownloadUrl,
-    directMp4Url: directDownloadUrl,
+    directDownloadUrl: torrentUrl,
+    dubDownloadUrl: kayoUrl,
+    standaloneUrl: torrentUrl,
+    dubStandaloneUrl: kayoUrl,
+    directMp4Url: paheUrl,
   };
+}
+
+/**
+ * Fetch live episode download sources (torrents, magnets, cloud mirrors) from backend
+ * @param {string} title
+ * @param {number} episode
+ * @returns {Promise<object|null>}
+ */
+export async function fetchLiveDownloads(title, episode = 1) {
+  const cleanTitle = getCleanAnimeTitle(title);
+  if (!cleanTitle) return null;
+
+  try {
+    const res = await fetch(`/api/v1/download?title=${encodeURIComponent(cleanTitle)}&episode=${episode}`, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.data || null;
+  } catch (err) {
+    return null;
+  }
 }
 
 /**
@@ -101,62 +115,46 @@ export function generateDirectDownload({ title, episode = 1, animeId = null }) {
 export function generateDownloadMirrors({ title, episode = 1, totalEpisodes = 1, animeId = null }) {
   const cleanTitle = getCleanAnimeTitle(title);
   const epNum = Math.max(1, Number(episode) || 1);
-  const slug = toAnimeSlug(cleanTitle);
   const epPad = epNum < 10 ? `0${epNum}` : `${epNum}`;
   const total = Math.max(epNum, Number(totalEpisodes) || 1);
 
   return [
     {
-      id: 'gogo-direct',
-      name: 'Direct Fast CDN Mirror (GogoAnime / Anitaku)',
-      type: 'Direct MP4 Stream & Download',
-      quality: '360p • 480p • 720p • 1080p',
-      badge: 'Fast Direct CDN',
+      id: 'nyaa-ep',
+      name: 'Nyaa Lossless 1080p Release',
+      type: 'Dual-Audio / High Bitrate MKV',
+      quality: '1080p Blu-Ray',
+      badge: 'Lossless 1080p',
       recommended: true,
-      url: slug
-        ? `https://anitaku.bz/${slug}-episode-${epNum}`
-        : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle)}`,
-      searchUrl: `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle)}`,
-      description: `Direct MP4 downloads with multiple fast servers (Vidstreaming, Mp4Upload, StreamWish) for Episode ${epNum}.`,
+      url: `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`,
+      searchUrl: `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`,
+      description: `Pristine uncompressed 1080p episode download with dual audio & soft subtitles for Episode ${epNum}.`,
+    },
+    {
+      id: 'kayo-cloud',
+      name: 'Direct Cloud Storage (Google Drive & Mega)',
+      type: 'Direct Cloud MP4 / DDL',
+      quality: '1080p / 720p DDL',
+      badge: 'Google Drive & Mega',
+      recommended: false,
+      url: `https://kayoanime.com/?s=${encodeURIComponent(cleanTitle)}`,
+      searchUrl: `https://kayoanime.com/?s=${encodeURIComponent(cleanTitle)}`,
+      description: 'Direct high-speed downloads via Google Drive and Mega folders without ads or torrent clients.',
     },
     {
       id: 'pahe',
       name: 'AnimePahe Compact HD Encode',
       type: 'Compressed High-Definition (H.264/H.265)',
       quality: '720p • 1080p',
-      badge: 'High Quality & Low Data',
+      badge: 'Compact & Fast',
       recommended: false,
       url: `https://animepahe.ru/anime?q=${encodeURIComponent(cleanTitle)}`,
       searchUrl: `https://animepahe.ru/anime?q=${encodeURIComponent(cleanTitle)}`,
       description: 'Crystal-clear encodes with small file sizes (~100-250MB per episode). Perfect for mobile & limited storage.',
     },
     {
-      id: 'dub-mirror',
-      name: 'English Dubbed Episode Mirror',
-      type: 'English Audio Dubbed Version',
-      quality: '720p • 1080p',
-      badge: 'English Dub',
-      recommended: false,
-      url: slug
-        ? `https://anitaku.bz/${slug}-dub-episode-${epNum}`
-        : `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle + ' dub')}`,
-      searchUrl: `https://anitaku.bz/search.html?keyword=${encodeURIComponent(cleanTitle + ' dub')}`,
-      description: `English voiceover audio release for Episode ${epNum}.`,
-    },
-    {
-      id: 'nyaa-ep',
-      name: 'Nyaa Lossless BDRip / Multi-Sub',
-      type: 'Dual-Audio / High Bitrate MKV',
-      quality: '1080p Blu-Ray',
-      badge: 'Lossless 1080p',
-      recommended: false,
-      url: `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`,
-      searchUrl: `https://nyaa.si/?f=0&c=1_2&q=${encodeURIComponent(cleanTitle + ' ' + epPad)}`,
-      description: `Pristine uncompressed 1080p episode download with dual audio & soft subtitles for collectors.`,
-    },
-    {
       id: 'nyaa-batch',
-      name: 'Complete Season / Batch Download',
+      name: 'Complete Season / Batch Archive',
       type: 'Full Season Archive',
       quality: '1080p / 720p Batch',
       badge: 'Batch Download',

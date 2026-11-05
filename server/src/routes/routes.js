@@ -18,6 +18,7 @@ import * as filter from '../modules/explore/filter/index.js';
 import * as episodes from '../modules/episodes/index.js';
 import * as servers from '../modules/servers/index.js';
 import * as stream from '../modules/stream/index.js';
+import * as download from '../modules/download/index.js';
 import * as monthlySchedule from '../modules/schedule/monthlySchedule/index.js';
 import * as nextEpSchedule from '../modules/schedule/nextEpSchedule/index.js';
 import * as meta from '../modules/meta/index.js';
@@ -31,6 +32,7 @@ const routes = [
   episodes,
   servers,
   stream,
+  download,
   home,
   spotlight,
   topTen,

@@ -11,15 +11,14 @@ import {
   HelpCircle,
   CheckCircle,
   Copy,
-  Zap,
   Terminal,
-  Play,
   Layers,
 } from 'lucide-react';
 import {
   generateDownloadMirrors,
   generateDirectDownload,
   getCleanAnimeTitle,
+  fetchLiveDownloads,
 } from '../utils/downloadHelper';
 import { markInternalNavigation } from '../utils/antiRedirect';
 
@@ -35,6 +34,7 @@ export default function DownloadModal({
   const [activeTab, setActiveTab] = useState('direct'); // 'direct' | 'mirrors'
   const [copiedLink, setCopiedLink] = useState(null);
   const [showTips, setShowTips] = useState(false);
+  const [liveData, setLiveData] = useState(null);
 
   useEffect(() => {
     setSelectedEp(currentEpisode);
@@ -64,9 +64,28 @@ export default function DownloadModal({
     };
   }, [isOpen]);
 
+  const title = anime ? getCleanAnimeTitle(anime.title) || 'Anime' : 'Anime';
+
+  // Fetch live episode torrents and magnets dynamically
+  useEffect(() => {
+    if (!isOpen || !title) return;
+    let active = true;
+
+    fetchLiveDownloads(title, selectedEp)
+      .then((data) => {
+        if (active && data) {
+          setLiveData(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, title, selectedEp]);
+
   if (!isOpen || !anime) return null;
 
-  const title = getCleanAnimeTitle(anime.title) || 'Anime';
   const poster =
     anime.coverImage?.extraLarge ||
     anime.coverImage?.large ||
@@ -121,6 +140,8 @@ export default function DownloadModal({
     } catch (_) {}
   };
 
+  const primaryTorrent = liveData?.torrents?.[0] || null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md"
@@ -128,101 +149,94 @@ export default function DownloadModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-2xl bg-[#0e0e0e] border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div
+        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-[#0d0d0d] border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800/80 bg-zinc-950/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <HardDriveDownload className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                <span>Download Anime</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold border border-emerald-500/30">
-                  Ep {selectedEp}
-                </span>
-              </h2>
-              <p className="text-xs text-zinc-400 truncate max-w-[260px] sm:max-w-md">
+        <div className="relative p-4 sm:p-5 border-b border-zinc-800/80 bg-zinc-950/60 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {poster && (
+              <img
+                src={poster}
+                alt={title}
+                className="w-11 h-14 object-cover rounded-xl border border-zinc-800 flex-shrink-0"
+              />
+            )}
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">
+                Episode Downloader
+              </span>
+              <h2 className="text-sm sm:text-base font-extrabold text-white truncate">
                 {title}
-              </p>
+              </h2>
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-400">
+                <span className="font-semibold text-zinc-300">
+                  Episode {selectedEp} of {maxEp}
+                </span>
+                <span>•</span>
+                <span className="text-zinc-500">1080p / 720p Dual Audio</span>
+              </div>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 flex items-center justify-center transition active:scale-95"
-            title="Close"
+            className="p-2 rounded-2xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition active:scale-95"
+            aria-label="Close download modal"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Navigation Tabs */}
-        <div className="flex border-b border-zinc-800 bg-[#121212] px-4 pt-2 gap-2">
+        {/* Tab Navigation */}
+        <div className="flex border-b border-zinc-800/80 bg-zinc-950/40 px-4 sm:px-5">
           <button
             type="button"
             onClick={() => setActiveTab('direct')}
-            className={`px-4 py-2.5 text-xs font-black rounded-t-xl transition flex items-center gap-2 border-b-2 ${
+            className={`py-3 px-4 font-bold text-xs transition border-b-2 flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'direct'
-                ? 'bg-zinc-900 text-emerald-400 border-emerald-500'
-                : 'text-zinc-400 hover:text-white border-transparent'
+                ? 'border-emerald-400 text-emerald-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Direct Download</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Direct Downloads</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('mirrors')}
-            className={`px-4 py-2.5 text-xs font-black rounded-t-xl transition flex items-center gap-2 border-b-2 ${
+            className={`py-3 px-4 font-bold text-xs transition border-b-2 flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'mirrors'
-                ? 'bg-zinc-900 text-white border-white'
-                : 'text-zinc-400 hover:text-white border-transparent'
+                ? 'border-emerald-400 text-emerald-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Storage Mirrors &amp; Batches</span>
+            <span>Cloud &amp; Storage Mirrors</span>
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 custom-scroll">
-          {/* Episode Selector Bar */}
-          <div className="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              {poster && (
-                <img
-                  src={poster}
-                  alt={title}
-                  className="w-10 h-14 object-cover rounded-lg border border-zinc-800 flex-shrink-0"
-                />
-              )}
-              <div>
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
-                  Selected Episode
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm font-black text-white">
-                    Episode {selectedEp}
-                  </span>
-                  <span className="text-xs text-zinc-500">of {maxEp}</span>
-                </div>
-              </div>
-            </div>
-
+        {/* Modal Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* Episode Quick Selector Bar */}
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80">
+            <span className="text-xs font-bold text-zinc-300 pl-2">
+              Select Episode:
+            </span>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => {
-                  const next = Math.max(1, selectedEp - 1);
-                  setSelectedEp(next);
-                  if (onSelectEpisode) onSelectEpisode(next);
-                }}
                 disabled={selectedEp <= 1}
-                className={`p-2 rounded-xl border border-zinc-800 text-xs font-bold transition flex items-center ${
+                onClick={() => {
+                  const prev = Math.max(1, selectedEp - 1);
+                  setSelectedEp(prev);
+                  if (onSelectEpisode) onSelectEpisode(prev);
+                }}
+                className={`p-1.5 rounded-xl border border-zinc-700/60 transition ${
                   selectedEp <= 1
-                    ? 'opacity-30 cursor-not-allowed bg-zinc-950 text-zinc-600'
+                    ? 'opacity-30 cursor-not-allowed text-zinc-500'
                     : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white active:scale-95'
                 }`}
                 title="Previous Episode"
@@ -233,30 +247,30 @@ export default function DownloadModal({
               <select
                 value={selectedEp}
                 onChange={(e) => {
-                  const num = Number(e.target.value);
-                  setSelectedEp(num);
-                  if (onSelectEpisode) onSelectEpisode(num);
+                  const ep = Number(e.target.value);
+                  setSelectedEp(ep);
+                  if (onSelectEpisode) onSelectEpisode(ep);
                 }}
-                className="bg-black hover:bg-zinc-900 text-white font-bold text-xs rounded-xl px-3 py-2 border border-zinc-700 focus:outline-none focus:border-white transition cursor-pointer"
+                className="bg-black/80 border border-zinc-700 text-white text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-400 cursor-pointer"
               >
                 {Array.from({ length: maxEp }, (_, i) => i + 1).map((ep) => (
                   <option key={ep} value={ep}>
-                    Ep {ep}
+                    Episode {ep}
                   </option>
                 ))}
               </select>
 
               <button
                 type="button"
+                disabled={selectedEp >= maxEp}
                 onClick={() => {
                   const next = Math.min(maxEp, selectedEp + 1);
                   setSelectedEp(next);
                   if (onSelectEpisode) onSelectEpisode(next);
                 }}
-                disabled={selectedEp >= maxEp}
-                className={`p-2 rounded-xl border border-zinc-800 text-xs font-bold transition flex items-center ${
+                className={`p-1.5 rounded-xl border border-zinc-700/60 transition ${
                   selectedEp >= maxEp
-                    ? 'opacity-30 cursor-not-allowed bg-zinc-950 text-zinc-600'
+                    ? 'opacity-30 cursor-not-allowed text-zinc-500'
                     : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white active:scale-95'
                 }`}
                 title="Next Episode"
@@ -275,7 +289,7 @@ export default function DownloadModal({
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
                     <span className="text-xs font-black text-white uppercase tracking-wider">
-                      Instant Direct Stream &amp; Download
+                      Verified Episode Download
                     </span>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-500/30">
@@ -285,33 +299,73 @@ export default function DownloadModal({
 
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-white truncate">
-                    {directInfo.filename}
+                    {primaryTorrent?.title || directInfo.filename}
                   </h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Download full high-definition video files directly with uncompressed audio &amp; soft subtitles.
+                    {primaryTorrent?.size
+                      ? `File Size: ${primaryTorrent.size} • Seeders: ${primaryTorrent.seeders} • Dual Audio & Soft Subtitles`
+                      : 'Download full high-definition video directly with uncompressed audio & soft subtitles.'}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => handleOpenDirect(directInfo.directDownloadUrl)}
+                    onClick={() =>
+                      handleOpenDirect(
+                        primaryTorrent?.torrentUrl || directInfo.torrentUrl
+                      )
+                    }
                     className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Download Episode {selectedEp} (MP4)</span>
+                    <span>
+                      {primaryTorrent?.torrentUrl
+                        ? `Download .torrent (Ep ${selectedEp})`
+                        : `Download Episode ${selectedEp} (1080p)`}
+                    </span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => handleOpenDirect(directInfo.dubDownloadUrl)}
+                    onClick={() => handleOpenDirect(directInfo.kayoUrl)}
                     className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs transition flex items-center justify-center gap-2 border border-zinc-700 active:scale-95 cursor-pointer"
                   >
-                    <Film className="w-4 h-4 text-emerald-400" />
-                    <span>Download Dubbed (MP4)</span>
+                    <HardDriveDownload className="w-4 h-4 text-emerald-400" />
+                    <span>Cloud Download (Drive &amp; Mega)</span>
                   </button>
                 </div>
               </div>
+
+              {/* 1-Click Multi-Resolution Magnet Releases (SubsPlease) */}
+              {liveData?.subsplease?.downloads?.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-[#141414] border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white truncate">
+                      1-Click Fast Magnets ({liveData.subsplease.releaseTitle})
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold flex-shrink-0">
+                      High Speed
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {liveData.subsplease.downloads.map((dl) => (
+                      <button
+                        key={dl.resolution}
+                        type="button"
+                        onClick={() => {
+                          markInternalNavigation();
+                          window.location.href = dl.magnet;
+                        }}
+                        className="py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{dl.resolution} Magnet</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* AnimePahe & Nyaa 1080p Torrent Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -361,9 +415,29 @@ export default function DownloadModal({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
                     <Terminal className="w-4 h-4 text-emerald-400" />
-                    <span>Download Manager Link &amp; Command (1DM / IDM / VLC / FFmpeg)</span>
+                    <span>Downloader Links (1DM / IDM / Magnet / FFmpeg)</span>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {primaryTorrent?.magnet && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(primaryTorrent.magnet, 'magnet')}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-[11px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                        title="Copy Magnet link for 1DM, qBittorrent, or Flud"
+                      >
+                        {copiedLink === 'magnet' ? (
+                          <>
+                            <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400 font-extrabold">Copied Magnet!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy Magnet</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleCopy(directInfo.streamUrl, 'stream')}
@@ -516,8 +590,8 @@ export default function DownloadModal({
                     1
                   </span>
                   <p>
-                    <strong className="text-zinc-200">Direct Episode Downloads:</strong> Click{' '}
-                    <span className="text-emerald-400 font-semibold">Download Episode (MP4)</span> or <span className="text-white font-semibold">AnimePahe</span> to select your preferred video resolution (1080p, 720p, 480p) and download the episode file directly to your device.
+                    <strong className="text-zinc-200">1-Click File Downloads:</strong> Click{' '}
+                    <span className="text-emerald-400 font-semibold">Download .torrent</span> to download the torrent file directly to your device, or click <span className="text-white font-semibold">Cloud Download</span> to access high-speed Google Drive and Mega folders.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -525,7 +599,7 @@ export default function DownloadModal({
                     2
                   </span>
                   <p>
-                    <strong className="text-zinc-200">Mobile Fast Downloader (1DM / ADM):</strong> Tap <span className="text-white font-semibold">Copy 1DM/IDM Link</span> and paste into 1DM (Android) to download the high-speed multi-threaded video stream directly into your gallery.
+                    <strong className="text-zinc-200">Mobile Fast Downloader (1DM / ADM / Flud):</strong> Tap <span className="text-white font-semibold">Copy Magnet</span> or <span className="text-white font-semibold">Copy 1DM Link</span> and paste into 1DM (Android) to download the high-speed multi-threaded video stream directly into your gallery.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -533,7 +607,7 @@ export default function DownloadModal({
                     3
                   </span>
                   <p>
-                    <strong className="text-zinc-200">Lossless 1080p Torrents &amp; FFmpeg:</strong> Click <span className="text-amber-400 font-semibold">.torrent</span> to grab the pristine Blu-Ray release with soft subtitles, or use the 1-click FFmpeg command in your terminal.
+                    <strong className="text-zinc-200">Lossless 1080p Magnets &amp; FFmpeg:</strong> Click any resolution magnet (1080p, 720p, 480p) to open in your torrent client, or use the 1-click FFmpeg command in your terminal.
                   </p>
                 </div>
               </div>
